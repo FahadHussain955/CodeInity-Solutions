@@ -22,6 +22,7 @@ import UserDashboard from "../pages/user/UserDashboard";
 
 import NotFound from "../pages/NotFound";
 import UnauthorizedPage from "../components/common/UnauthorizedPage";
+import ColorPalette from "../pages/ColorPalette";
 
 const AppRouter = () => {
   return (
@@ -62,7 +63,9 @@ const AppRouter = () => {
 
         <Route path={ROUTES.UNAUTHORIZED} element={<UnauthorizedPage />} />
         <Route path={ROUTES.NOT_FOUND}    element={<NotFound />} />
-        <Route path="*"                   element={<Navigate to={ROUTES.NOT_FOUND} replace />} />
+        {/* Public dev reference — no auth required */}
+        <Route path="/color-palette"       element={<ColorPalette />} />
+        <Route path="*"                    element={<Navigate to={ROUTES.NOT_FOUND} replace />} />
       </Routes>
     </BrowserRouter>
   );

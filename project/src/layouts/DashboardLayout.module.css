@@ -6,15 +6,15 @@
 
 /* ── Sider ─────────────────────────────────────────────────── */
 .sider {
-  background: var(--warm-white) !important;
+  background: var(--bg-overlay) !important;
   border-right: 1px solid var(--border-color) !important;
-  box-shadow: var(--shadow-sm) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
-/* Hide the default antd trigger */
+/* Antd collapse trigger */
 :global(.ant-layout-sider-trigger) {
-  background: var(--sage-surface) !important;
-  color: var(--sage-primary) !important;
+  background: var(--bg-highlight) !important;
+  color: var(--galaxy-primary) !important;
   border-top: 1px solid var(--border-color) !important;
 }
 
@@ -33,14 +33,14 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--sage-primary), var(--sage-dark));
+  background: linear-gradient(135deg, var(--galaxy-primary), var(--nebula-violet));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-inverse);
+  color: #ffffff;
   font-size: var(--font-md);
   font-weight: 700;
-  box-shadow: 0 3px 10px rgba(107, 143, 106, 0.3);
+  box-shadow: var(--glow-primary);
 }
 
 .logoText {
@@ -64,7 +64,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-lg) !important;
-  background: var(--warm-white) !important;
+  background: var(--bg-overlay) !important;
   border-bottom: 1px solid var(--border-color) !important;
   box-shadow: var(--shadow-sm) !important;
   position: sticky;
@@ -87,8 +87,8 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 .collapseBtn:hover {
-  background: var(--sage-surface);
-  color: var(--sage-primary);
+  background: var(--bg-highlight);
+  color: var(--galaxy-primary);
 }
 
 .headerRight {
@@ -111,8 +111,8 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 .iconBtn:hover {
-  background: var(--sage-surface);
-  color: var(--sage-primary);
+  background: var(--bg-highlight);
+  color: var(--nebula-cyan);
 }
 
 .userInfo {
@@ -124,7 +124,7 @@
   transition: background 0.2s ease;
 }
 .userInfo:hover {
-  background: var(--sage-surface);
+  background: var(--bg-highlight);
 }
 
 .userMeta {
@@ -146,7 +146,7 @@
 
 /* ── Content ───────────────────────────────────────────────── */
 .content {
-  background: var(--cream-base) !important;
+  background: var(--bg-base) !important;
   padding: var(--space-lg);
   min-height: calc(100vh - var(--header-height));
   overflow-y: auto;
