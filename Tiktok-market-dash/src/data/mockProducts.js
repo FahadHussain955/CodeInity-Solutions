@@ -1,0 +1,40 @@
+export const mockProducts = [
+  {
+    id: '1',
+    name: 'Aura Pro Noise Cancelling Headphones',
+    sku: 'AUR-PRO-NC-BLK',
+    category: 'Electronics > Audio',
+    stock: 342,
+    price: 299.00,
+    status: 'Active',
+    aiOptimized: true,
+    updatedAt: '2h ago',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBmtIBAqnV3xVGOhKGR86G4JCgusTMInAvvVILs0cooHHw7tjVptFxYICkZBi-ewy32VJRJrufRTAncXkKhYvN_0Sr825GD3sMbGlL9kKCpR-ieFmrTe7vzniKWTDeDgw7C1X8qrtJTl1oRdQ5dfRBsXemOWKuWMj63Idi9cpFLZLUy53iInF1DyuJlpEc8yOCyPN0r_B4NdcIoQRPbxFD01y6_4GVzrn7lXDo8OtJyM4KKoxgxzIOg',
+  },
+  {
+    id: '2',
+    name: 'Chrono M2 Smartwatch',
+    sku: 'CHR-M2-SLV',
+    category: 'Electronics > Wearables',
+    stock: 12,
+    price: 149.50,
+    status: 'Active',
+    aiOptimized: false,
+    updatedAt: '1d ago',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCM5GtcuWM8jjj8O99wDQvraOUnU3rb2BTDK8wbqDteOWIB3X0vnkLaWZH0_5xvQtTIZUd1wwJjFAyx2ICRNW8EuYfarFqqKZxlHdh7xWc6xm0XQouSaQ4_f1ThxoBTutZhWPexmf2HuJx3fjN0Vd5Y9O6F03CINBbXiyKX9KlOVx_mesxfihYwJ_UyARez3oLlhe77gW7qlrwb-OrVtWINM7mhUISjusKqIQwymDPSdAxORabxPqPZ',
+  },
+  {
+    id: '3',
+    name: 'Ergo Mesh Office Chair',
+    sku: 'ERG-CH-BLK',
+    category: 'Furniture > Office',
+    stock: null,
+    price: 399.00,
+    status: 'Draft',
+    aiOptimized: false,
+    updatedAt: '3d ago',
+    image: null,
+  },
+];
+
+export const productCounts = { all: 124, active: 98, draft: 21, archived: 5 };

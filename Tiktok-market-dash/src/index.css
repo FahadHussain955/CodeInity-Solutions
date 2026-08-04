@@ -1,111 +1,331 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@import "tailwindcss";
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  /* ──────────────────────────────────────────
+     Color tokens (from HTML design system)
+  ────────────────────────────────────────── */
+  --color-background:                #faf8ff;
+  --color-surface:                   #faf8ff;
+  --color-surface-bright:            #faf8ff;
+  --color-surface-dim:               #d2d9f4;
+  --color-surface-variant:           #dae2fd;
+  --color-surface-container-lowest:  #ffffff;
+  --color-surface-container-low:     #f2f3ff;
+  --color-surface-container:         #eaedff;
+  --color-surface-container-high:    #e2e7ff;
+  --color-surface-container-highest: #dae2fd;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  --color-on-background:             #131b2e;
+  --color-on-surface:                #131b2e;
+  --color-on-surface-variant:        #464554;
+
+  --color-primary:                   #4648d4;
+  --color-primary-container:         #6063ee;
+  --color-primary-fixed:             #e1e0ff;
+  --color-primary-fixed-dim:         #c0c1ff;
+  --color-on-primary:                #ffffff;
+  --color-on-primary-container:      #fffbff;
+  --color-on-primary-fixed:          #07006c;
+  --color-on-primary-fixed-variant:  #2f2ebe;
+  --color-inverse-primary:           #c0c1ff;
+  --color-surface-tint:              #494bd6;
+
+  --color-secondary:                 #006591;
+  --color-secondary-container:       #39b8fd;
+  --color-secondary-fixed:           #c9e6ff;
+  --color-secondary-fixed-dim:       #89ceff;
+  --color-on-secondary:              #ffffff;
+  --color-on-secondary-container:    #004666;
+  --color-on-secondary-fixed:        #001e2f;
+  --color-on-secondary-fixed-variant:#004c6e;
+
+  --color-tertiary:                  #825100;
+  --color-tertiary-container:        #a36700;
+  --color-tertiary-fixed:            #ffddb8;
+  --color-tertiary-fixed-dim:        #ffb95f;
+  --color-on-tertiary:               #ffffff;
+  --color-on-tertiary-container:     #fffbff;
+  --color-on-tertiary-fixed:         #2a1700;
+  --color-on-tertiary-fixed-variant: #653e00;
+
+  --color-error:                     #ba1a1a;
+  --color-error-container:           #ffdad6;
+  --color-on-error:                  #ffffff;
+  --color-on-error-container:        #93000a;
+
+  --color-outline:                   #767586;
+  --color-outline-variant:           #c7c4d7;
+
+  --color-inverse-surface:           #283044;
+  --color-inverse-on-surface:        #eef0ff;
+
+  /* Status colors */
+  --color-success:                   #137333;
+  --color-success-bg:                #e6f4ea;
+  --color-success-border:            #ceead6;
+  --color-warning:                   #b06000;
+  --color-warning-bg:                #fef3c7;
+  --color-warning-border:            #fde68a;
+  --color-info:                      #1a73e8;
+  --color-info-bg:                   #e8f0fe;
+  --color-info-border:               #aecbfa;
+
+  /* ──────────────────────────────────────────
+     Spacing tokens
+  ────────────────────────────────────────── */
+  --spacing-gutter:           24px;
+  --spacing-container-margin: 32px;
+  --spacing-sidebar-collapsed:80px;
+  --spacing-sidebar-width:    260px;
+  --spacing-unit:             4px;
+  --spacing-18:               4.5rem;
+
+  /* ──────────────────────────────────────────
+     Border radius
+  ────────────────────────────────────────── */
+  --radius-DEFAULT: 0.25rem;
+  --radius-lg:      0.5rem;
+  --radius-xl:      0.75rem;
+  --radius-full:    9999px;
+
+  /* ──────────────────────────────────────────
+     Typography
+  ────────────────────────────────────────── */
+  --font-sans:          'Inter', system-ui, sans-serif;
+  --font-display-lg-mobile: 'Inter', system-ui, sans-serif;
+  --font-display-lg:    'Inter', system-ui, sans-serif;
+  --font-headline-md:   'Inter', system-ui, sans-serif;
+  --font-body-lg:       'Inter', system-ui, sans-serif;
+  --font-body-md:       'Inter', system-ui, sans-serif;
+  --font-body-sm:       'Inter', system-ui, sans-serif;
+  --font-label-caps:    'Inter', system-ui, sans-serif;
+
+  --text-display-lg-mobile: 32px;
+  --text-display-lg:        48px;
+  --text-headline-md:       24px;
+  --text-body-lg:           18px;
+  --text-body-md:           16px;
+  --text-body-sm:           14px;
+  --text-label-caps:        12px;
+
+  /* ──────────────────────────────────────────
+     Box shadows
+  ────────────────────────────────────────── */
+  --shadow-primary-sm: 0 4px 12px rgba(70, 72, 212, 0.2);
+  --shadow-primary-md: 0 6px 16px rgba(70, 72, 212, 0.3);
+  --shadow-glass:      0 8px 32px rgba(70, 72, 212, 0.08);
+}
+
+/* ──────────────────────────────────────────
+   Base styles
+────────────────────────────────────────── */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    color-scheme: light;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  #root {
+    width: 100%;
+    min-height: 100vh;
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+/* ──────────────────────────────────────────
+   Component utilities (matching HTML design)
+────────────────────────────────────────── */
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  .animated-bg {
+    background: linear-gradient(-45deg, #f2f3ff, #dae2fd, #c9e6ff, #faf8ff);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+  }
+
+  .ai-glow {
+    background: linear-gradient(90deg, rgba(70,72,212,0.04) 0%, rgba(57,184,253,0.04) 100%);
+    box-shadow: inset 0 0 0 1px rgba(70,72,212,0.12);
+  }
+
+  .table-row-hover:hover {
+    background-color: rgba(218, 226, 253, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+
+  .input-glass {
+    background: transparent;
+    border: 1px solid var(--color-outline-variant);
+    transition: all 0.3s ease;
+  }
+  .input-glass:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(70, 72, 212, 0.15);
+    outline: none;
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+/* ──────────────────────────────────────────
+   Typography helpers (matching HTML font classes)
+────────────────────────────────────────── */
+.text-display-lg-mobile {
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
-
-body {
-  margin: 0;
+.text-display-lg {
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
+.text-headline-md {
   font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+  line-height: 32px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
 }
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.text-body-lg { font-size: 18px; line-height: 28px; font-weight: 400; }
+.text-body-md { font-size: 16px; line-height: 24px; font-weight: 400; }
+.text-body-sm { font-size: 14px; line-height: 20px; font-weight: 400; }
+.text-label-caps {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* ──────────────────────────────────────────
+   Spacing helpers (sidebar-width, container-margin, h-18)
+────────────────────────────────────────── */
+.w-sidebar-width  { width: 260px; }
+.ml-sidebar-width { margin-left: 260px; }
+.p-container-margin { padding: 32px; }
+.px-container-margin { padding-left: 32px; padding-right: 32px; }
+.h-18 { height: 4.5rem; }
+.mt-18 { margin-top: 4.5rem; }
+.w-sidebar-collapsed { width: 80px; }
+
+/* ──────────────────────────────────────────
+   Color utility overrides using CSS vars
+   (ensures Tailwind v4 picks them up)
+────────────────────────────────────────── */
+.bg-background              { background-color: var(--color-background); }
+.bg-surface                 { background-color: var(--color-surface); }
+.bg-surface-variant         { background-color: var(--color-surface-variant); }
+.bg-surface-container       { background-color: var(--color-surface-container); }
+.bg-surface-container-low   { background-color: var(--color-surface-container-low); }
+.bg-surface-container-lowest{ background-color: var(--color-surface-container-lowest); }
+.bg-surface-container-high  { background-color: var(--color-surface-container-high); }
+.bg-primary                 { background-color: var(--color-primary); }
+.bg-primary-container       { background-color: var(--color-primary-container); }
+.bg-primary-fixed           { background-color: var(--color-primary-fixed); }
+.bg-secondary               { background-color: var(--color-secondary); }
+.bg-secondary-container     { background-color: var(--color-secondary-container); }
+.bg-error                   { background-color: var(--color-error); }
+.bg-error-container         { background-color: var(--color-error-container); }
+.bg-surface-tint            { background-color: var(--color-surface-tint); }
+.bg-tertiary-container      { background-color: var(--color-tertiary-container); }
+.bg-inverse-surface         { background-color: var(--color-inverse-surface); }
+.bg-outline-variant         { background-color: var(--color-outline-variant); }
+
+.text-on-background         { color: var(--color-on-background); }
+.text-on-surface            { color: var(--color-on-surface); }
+.text-on-surface-variant    { color: var(--color-on-surface-variant); }
+.text-on-primary            { color: var(--color-on-primary); }
+.text-on-primary-container  { color: var(--color-on-primary-container); }
+.text-on-primary-fixed-variant { color: var(--color-on-primary-fixed-variant); }
+.text-on-secondary          { color: var(--color-on-secondary); }
+.text-on-error              { color: var(--color-on-error); }
+.text-on-error-container    { color: var(--color-on-error-container); }
+.text-primary               { color: var(--color-primary); }
+.text-primary-fixed-variant { color: var(--color-on-primary-fixed-variant); }
+.text-secondary             { color: var(--color-secondary); }
+.text-error                 { color: var(--color-error); }
+.text-outline               { color: var(--color-outline); }
+.text-outline-variant       { color: var(--color-outline-variant); }
+.text-on-tertiary-container { color: var(--color-on-tertiary-container); }
+
+.border-primary             { border-color: var(--color-primary); }
+.border-outline-variant     { border-color: var(--color-outline-variant); }
+.border-error               { border-color: var(--color-error); }
+.border-surface             { border-color: var(--color-surface); }
+.border-surface-container   { border-color: var(--color-surface-container); }
+
+/* ──────────────────────────────────────────
+   Opacity modifiers for border/bg
+────────────────────────────────────────── */
+.border-outline-variant\/20 { border-color: rgba(199, 196, 215, 0.2); }
+.border-outline-variant\/30 { border-color: rgba(199, 196, 215, 0.3); }
+.border-outline-variant\/50 { border-color: rgba(199, 196, 215, 0.5); }
+.border-primary\/20         { border-color: rgba(70, 72, 212, 0.2); }
+.border-error\/30           { border-color: rgba(186, 26, 26, 0.3); }
+
+.bg-primary\/5              { background-color: rgba(70, 72, 212, 0.05); }
+.bg-primary\/10             { background-color: rgba(70, 72, 212, 0.1); }
+.hover\:bg-primary\/10:hover{ background-color: rgba(70, 72, 212, 0.1); }
+.bg-surface\/60             { background-color: rgba(250, 248, 255, 0.6); }
+.bg-surface-variant\/30     { background-color: rgba(218, 226, 253, 0.3); }
+.bg-surface-variant\/40     { background-color: rgba(218, 226, 253, 0.4); }
+.bg-surface-container-lowest\/50 { background-color: rgba(255,255,255,0.5); }
+.bg-error-container\/40     { background-color: rgba(255, 218, 214, 0.4); }
+.bg-black\/40               { background-color: rgba(0,0,0,0.4); }
+
+.hover\:bg-surface-variant\/30:hover { background-color: rgba(218, 226, 253, 0.3); }
+.hover\:bg-surface-variant\/40:hover { background-color: rgba(218, 226, 253, 0.4); }
+.hover\:bg-surface-variant\/50:hover { background-color: rgba(218, 226, 253, 0.5); }
+.hover\:bg-error-container\/40:hover { background-color: rgba(255, 218, 214, 0.4); }
+
+.focus\:ring-primary\/10:focus  { --tw-ring-color: rgba(70, 72, 212, 0.1); }
+.focus\:ring-primary\/20:focus  { --tw-ring-color: rgba(70, 72, 212, 0.2); }
+
+.divide-outline-variant\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(199, 196, 215, 0.1);
 }
+.bg-surface-container-low\/30 { background-color: rgba(242, 243, 255, 0.3); }
+.bg-surface-container-low\/50 { background-color: rgba(242, 243, 255, 0.5); }
+
+/* group-focus-within text color */
+.group:focus-within .group-focus-within\:text-primary { color: var(--color-primary); }
+.group:hover .group-hover\:text-primary               { color: var(--color-primary); }
+.group:hover .group-hover\:text-on-surface            { color: var(--color-on-surface); }
+
+/* ──────────────────────────────────────────
+   Custom scrollbar
+────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar        { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track  { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb  { background-color: #c7c4d7; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #767586; }
+
+/* ──────────────────────────────────────────
+   Animations
+────────────────────────────────────────── */
+@keyframes gradientBG {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.animate-pulse-gentle { animation: pulse-gentle 2s ease-in-out infinite; }

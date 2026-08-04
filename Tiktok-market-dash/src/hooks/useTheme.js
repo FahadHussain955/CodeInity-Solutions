@@ -1,3 +1,2 @@
-export const useTheme = () => {
-  return {};
-};
+import { useTheme } from '@/contexts/ThemeContext';
+export { useTheme };
