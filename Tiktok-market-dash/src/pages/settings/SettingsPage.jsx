@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useStoreConnection } from '@/contexts/StoreConnectionContext';
 
 const SECTIONS = [
   { key: 'store', label: 'Store Details', icon: 'storefront' },
@@ -6,7 +7,6 @@ const SECTIONS = [
   { key: 'notifications', label: 'Notifications', icon: 'notifications' },
   { key: 'integrations', label: 'Integrations', icon: 'extension' },
   { key: 'security', label: 'Security', icon: 'lock' },
-  { key: 'api', label: 'API Keys', icon: 'key' },
 ];
 
 const Toggle = ({ checked, onChange }) => (
@@ -25,14 +25,14 @@ const SettingsPage = () => {
   const [currency, setCurrency] = useState('USD');
   const [notifs, setNotifs] = useState({ orders: true, inventory: true, customers: false, marketing: true });
 
+  const { isConnected, storeDetails, openConnectModal, disconnectStore } = useStoreConnection();
+
   const inputClass = 'w-full bg-surface border border-outline-variant/50 rounded-lg py-2.5 px-4 text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm';
 
-  const integrations = [
-    { name: 'Shopify', desc: 'Sync products and orders', icon: '🛍️', connected: true },
-    { name: 'Stripe', desc: 'Payment processing', icon: '💳', connected: true },
-    { name: 'Mailchimp', desc: 'Email marketing campaigns', icon: '📧', connected: false },
-    { name: 'Google Analytics', desc: 'Traffic and conversion data', icon: '📊', connected: false },
-    { name: 'WhatsApp Business', desc: 'Customer messaging', icon: '💬', connected: false },
+  const integrationOptions = [
+    { name: 'Shopify', desc: 'Sync products and orders seamlessly.', icon: '🛍️', comingSoon: false },
+    { name: 'TikTok Shop', desc: 'Manage your TikTok storefront.', icon: '🎵', comingSoon: false },
+    { name: 'WooCommerce', desc: 'Connect your WordPress store.', icon: '🛒', comingSoon: true },
   ];
 
   return (
@@ -144,25 +144,79 @@ const SettingsPage = () => {
             <div className="glass-panel rounded-xl overflow-hidden">
               <div className="p-6 border-b border-outline-variant/20">
                 <h3 className="text-headline-md text-on-background">Connected Integrations</h3>
-                <p className="text-body-sm text-on-surface-variant mt-1">Manage third-party services and platforms</p>
+                <p className="text-body-sm text-on-surface-variant mt-1">Manage your connected stores and platforms.</p>
               </div>
               <div className="divide-y divide-outline-variant/10">
-                {integrations.map(({ name, desc, icon, connected }) => (
-                  <div key={name} className="flex items-center gap-4 p-5">
-                    <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-[22px] shrink-0">{icon}</div>
-                    <div className="flex-1">
-                      <p className="text-body-sm font-semibold text-on-surface">{name}</p>
-                      <p className="text-label-caps text-on-surface-variant">{desc}</p>
+                {integrationOptions.map(({ name, desc, icon, comingSoon }) => {
+                  const isThisConnected = isConnected && storeDetails?.platform === name;
+
+                  return (
+                    <div key={name} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-[24px] shrink-0 border border-outline-variant/20 shadow-sm">{icon}</div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-body-md font-semibold text-on-surface">{name}</p>
+                            {isThisConnected && (
+                              <span className="flex items-center gap-1 text-label-caps text-[#137333] bg-[#e6f4ea] border border-[#ceead6] px-2 py-0.5 rounded-full">
+                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                                Connected
+                              </span>
+                            )}
+                            {comingSoon && (
+                              <span className="text-label-caps text-outline bg-surface-container px-2 py-0.5 rounded-full">Coming Soon</span>
+                            )}
+                          </div>
+                          <p className="text-body-sm text-on-surface-variant mt-0.5">{desc}</p>
+                          
+                          {isThisConnected && (
+                            <div className="mt-3 p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 flex items-center gap-6">
+                              <div>
+                                <p className="text-label-caps text-outline uppercase tracking-wider mb-0.5">Store Details</p>
+                                <p className="text-body-sm font-medium text-on-surface">{storeDetails.name}</p>
+                                <p className="text-[11px] text-on-surface-variant">{storeDetails.url}</p>
+                              </div>
+                              <div className="hidden sm:block w-px h-8 bg-outline-variant/20" />
+                              <div className="hidden sm:block">
+                                <p className="text-label-caps text-outline uppercase tracking-wider mb-0.5">Last Sync</p>
+                                <p className="text-body-sm text-on-surface">Just now</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                        {isThisConnected ? (
+                          <div className="flex items-center gap-2 w-full">
+                            <button className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 border border-outline-variant/50 rounded-lg text-body-sm font-medium text-on-surface hover:bg-surface-variant/30 transition-colors shadow-sm">
+                              <span className="material-symbols-outlined text-[18px]">sync</span>
+                              Sync Now
+                            </button>
+                            <button 
+                              onClick={disconnectStore}
+                              className="flex items-center justify-center p-2 border border-error/30 text-error rounded-lg hover:bg-error-container/50 transition-colors"
+                              title="Disconnect Store"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">link_off</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => !comingSoon && openConnectModal(name)}
+                            disabled={comingSoon}
+                            className={`w-full sm:w-auto px-5 py-2.5 rounded-lg text-body-sm font-medium transition-colors shadow-sm ${
+                              comingSoon
+                                ? 'bg-surface-container-high text-outline cursor-not-allowed'
+                                : 'bg-primary text-on-primary hover:bg-surface-tint'
+                            }`}
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <button className={`px-4 py-1.5 rounded-lg text-body-sm font-medium transition-colors ${
-                      connected
-                        ? 'bg-[#e6f4ea] text-[#137333] border border-[#ceead6] hover:bg-error-container hover:text-on-error-container hover:border-error/30'
-                        : 'bg-primary text-on-primary hover:bg-surface-tint'
-                    }`}>
-                      {connected ? 'Connected' : 'Connect'}
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -220,18 +274,16 @@ const SettingsPage = () => {
           )}
 
           {/* Other placeholders */}
-          {['billing', 'api'].includes(active) && (
+          {['billing'].includes(active) && (
             <div className="glass-panel rounded-xl p-12 flex flex-col items-center justify-center text-center">
               <div className="w-14 h-14 rounded-xl bg-primary-container flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-[28px] text-on-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  {active === 'billing' ? 'credit_card' : 'key'}
+                  credit_card
                 </span>
               </div>
-              <h3 className="text-headline-md text-on-background mb-2">
-                {active === 'billing' ? 'Billing & Plan' : 'API Keys'}
-              </h3>
+              <h3 className="text-headline-md text-on-background mb-2">Billing & Plan</h3>
               <p className="text-body-sm text-on-surface-variant max-w-xs">
-                {active === 'billing' ? 'Manage your subscription plan and billing details.' : 'Generate and manage API keys for integrations.'}
+                Manage your subscription plan and billing details.
               </p>
             </div>
           )}

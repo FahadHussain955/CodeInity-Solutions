@@ -79,29 +79,29 @@ const InventoryPage = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
+        <div className="table-scroll">
+          <table className="w-full text-left border-collapse whitespace-nowrap" style={{ minWidth: '780px' }}>
             <thead>
               <tr className="border-b border-outline-variant/20 bg-surface-container-low/50">
-                {['Product', 'SKU', 'Category', 'In Stock', 'Reserved', 'Reorder Point', 'Stock Level', 'Status'].map((h) => (
-                  <th key={h} className="py-3 px-6 text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold">{h}</th>
+                {['Product', 'SKU', 'Category', 'In Stock', 'Reserved', 'Reorder Pt', 'Stock Level', 'Status'].map((h) => (
+                  <th key={h} className="py-3 px-4 text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="text-body-sm divide-y divide-outline-variant/10">
               {filtered.map((item) => (
                 <tr key={item.id} className="table-row-hover transition-all duration-200">
-                  <td className="py-3 px-6 font-medium text-on-surface">{item.name}</td>
-                  <td className="py-3 px-6 font-mono text-on-surface-variant">{item.sku}</td>
-                  <td className="py-3 px-6 text-on-surface-variant">{item.category}</td>
-                  <td className="py-3 px-6">
+                  <td className="py-3 px-4 font-medium text-on-surface max-w-[180px] truncate">{item.name}</td>
+                  <td className="py-3 px-4 font-mono text-on-surface-variant text-[12px]">{item.sku}</td>
+                  <td className="py-3 px-4 text-on-surface-variant">{item.category}</td>
+                  <td className="py-3 px-4">
                     <span className={`font-mono font-semibold ${item.inStock === 0 ? 'text-error' : item.inStock <= item.reorderPoint ? 'text-[#b06000]' : 'text-on-surface'}`}>
                       {item.inStock}
                     </span>
                   </td>
-                  <td className="py-3 px-6 font-mono text-on-surface-variant">{item.reserved}</td>
-                  <td className="py-3 px-6 font-mono text-on-surface-variant">{item.reorderPoint}</td>
-                  <td className="py-3 px-6 min-w-[140px]">
+                  <td className="py-3 px-4 font-mono text-on-surface-variant">{item.reserved}</td>
+                  <td className="py-3 px-4 font-mono text-on-surface-variant">{item.reorderPoint}</td>
+                  <td className="py-3 px-4" style={{ minWidth: '140px' }}>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-2 bg-surface-container-high rounded-full overflow-hidden">
                         <div
@@ -109,15 +109,16 @@ const InventoryPage = () => {
                           style={{ width: `${stockPercent(item)}%` }}
                         />
                       </div>
-                      <span className="text-label-caps text-on-surface-variant w-8 text-right">{stockPercent(item)}%</span>
+                      <span className="text-label-caps text-on-surface-variant w-8 text-right shrink-0">{stockPercent(item)}%</span>
                     </div>
                   </td>
-                  <td className="py-3 px-6"><StatusBadge status={item.status} /></td>
+                  <td className="py-3 px-4"><StatusBadge status={item.status} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
 
         {/* Low stock alert banner */}
         {filtered.some((i) => i.inStock <= i.reorderPoint) && (

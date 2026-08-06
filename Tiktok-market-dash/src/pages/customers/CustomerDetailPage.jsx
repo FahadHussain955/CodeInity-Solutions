@@ -66,7 +66,7 @@ const CustomerDetailPage = () => {
             <div className="p-6 border-b border-outline-variant/20">
               <h3 className="text-headline-md text-on-background">Order History</h3>
             </div>
-            <div className="overflow-x-auto">
+            <div className="table-scroll">
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-outline-variant/20 bg-surface-container-low/50">

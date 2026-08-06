@@ -224,6 +224,42 @@
 .w-sidebar-collapsed { width: 80px; }
 
 /* ──────────────────────────────────────────
+   Responsive table wrapper
+   Usage: wrap <table> in <div class="table-scroll">
+────────────────────────────────────────── */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.table-scroll table {
+  min-width: 640px; /* ensures columns don't collapse */
+  width: 100%;
+}
+.table-scroll::-webkit-scrollbar { height: 4px; }
+.table-scroll::-webkit-scrollbar-thumb { background: rgba(199,196,215,0.6); border-radius: 4px; }
+
+/* ──────────────────────────────────────────
+   Page content max-width + padding
+   (replaces the old p-container-margin)
+────────────────────────────────────────── */
+.page-container {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 16px;
+}
+@media (min-width: 640px) {
+  .page-container { padding: 24px; }
+}
+@media (min-width: 1024px) {
+  .page-container { padding: 32px; }
+}
+
+
+/* ──────────────────────────────────────────
    Color utility overrides using CSS vars
    (ensures Tailwind v4 picks them up)
 ────────────────────────────────────────── */

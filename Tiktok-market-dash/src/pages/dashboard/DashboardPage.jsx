@@ -33,10 +33,7 @@ const DashboardPage = () => {
           <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-background">Dashboard</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors font-body-sm text-body-sm font-medium">
-            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-            AI Insights
-          </button>
+
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-outline-variant/50 bg-surface text-on-surface hover:bg-surface-variant/30 transition-colors font-body-sm text-body-sm font-medium shadow-sm">
             <span className="material-symbols-outlined text-[18px]">date_range</span>
             Last 30 days
@@ -141,7 +138,7 @@ const DashboardPage = () => {
             <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="table-scroll">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b border-outline-variant/20 bg-surface-container-low/50">

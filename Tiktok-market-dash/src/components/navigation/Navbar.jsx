@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
 import { ROUTES } from '@/constants/routes';
 
-const Navbar = ({ onMenuToggle, searchPlaceholder = 'Search products, SKUs, or categories...' }) => {
+const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search products, SKUs, or categories...' }) => {
   const { toggleTheme } = useTheme();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -36,17 +36,17 @@ const Navbar = ({ onMenuToggle, searchPlaceholder = 'Search products, SKUs, or c
             placeholder={searchPlaceholder}
             type="text"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-            <kbd className="hidden lg:inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-medium text-outline bg-surface-container rounded border border-outline-variant/30">⌘</kbd>
-            <kbd className="hidden lg:inline-flex items-center justify-center px-1.5 h-5 text-[10px] font-medium text-outline bg-surface-container rounded border border-outline-variant/30">K</kbd>
-          </div>
+
         </div>
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-4 ml-auto">
         {/* AI Insights */}
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors font-body-sm text-body-sm font-medium">
+        <button 
+          onClick={onInsightsClick}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors font-body-sm text-body-sm font-medium"
+        >
           <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
           <span className="hidden sm:inline">AI Insights</span>
         </button>

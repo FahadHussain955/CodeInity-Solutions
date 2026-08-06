@@ -12,6 +12,12 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 const LoginPage    = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 
+// ── TikTok Ads Pages ────────────────────────────────────────────────────────
+const CampaignsPage     = lazy(() => import('@/pages/campaigns/CampaignsPage'));
+const CampaignDetailPage = lazy(() => import('@/pages/campaigns/CampaignDetailPage'));
+const AdsPage           = lazy(() => import('@/pages/ads/AdsPage'));
+const AudiencePage      = lazy(() => import('@/pages/audience/AudiencePage'));
+
 // ── Dashboard ───────────────────────────────────────────────────────────────
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 
@@ -30,18 +36,11 @@ const InventoryPage = lazy(() => import('@/pages/inventory/InventoryPage'));
 const CustomersPage      = lazy(() => import('@/pages/customers/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('@/pages/customers/CustomerDetailPage'));
 
-// ── Analytics ───────────────────────────────────────────────────────────────
-const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'));
-
-// ── Media ───────────────────────────────────────────────────────────────────
-const MediaPage = lazy(() => import('@/pages/media/MediaPage'));
-
 // ── Settings & Profile ──────────────────────────────────────────────────────
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const ProfilePage  = lazy(() => import('@/pages/profile/ProfilePage'));
 
 // ── System ──────────────────────────────────────────────────────────────────
-const PlaceholderPage = lazy(() => import('@/pages/system/PlaceholderPage'));
 const NotFoundPage    = lazy(() => import('@/pages/system/NotFoundPage'));
 
 // Loading fallback
@@ -70,8 +69,8 @@ export const AppRouter = () => (
           <Route element={<AuthLayout />}>
             <Route path={ROUTES.LOGIN}            element={<LoginPage />} />
             <Route path={ROUTES.REGISTER}         element={<RegisterPage />} />
-            <Route path={ROUTES.FORGOT_PASSWORD}  element={<PlaceholderPage title="Forgot Password" icon="lock_reset" description="Enter your email to receive a password reset link." />} />
-            <Route path={ROUTES.RESET_PASSWORD}   element={<PlaceholderPage title="Reset Password"  icon="lock_open"  description="Choose a new secure password for your account." />} />
+            <Route path={ROUTES.FORGOT_PASSWORD}  element={<Navigate to={ROUTES.LOGIN} replace />} />
+            <Route path={ROUTES.RESET_PASSWORD}   element={<Navigate to={ROUTES.LOGIN} replace />} />
           </Route>
         </Route>
 
@@ -82,10 +81,20 @@ export const AppRouter = () => (
             {/* Dashboard */}
             <Route path={ROUTES.DASHBOARD}    element={<DashboardPage />} />
 
+            {/* ── TikTok Ads ────────────────────────────────── */}
+            <Route path={ROUTES.CAMPAIGNS}              element={<CampaignsPage />} />
+            <Route path="/dashboard/campaigns/new"       element={<Navigate to={ROUTES.CAMPAIGNS} replace />} />
+            <Route path="/dashboard/campaigns/:id"       element={<CampaignDetailPage />} />
+            <Route path={ROUTES.ADS}                     element={<AdsPage />} />
+            <Route path="/dashboard/ads/new"             element={<Navigate to={ROUTES.ADS} replace />} />
+            <Route path="/dashboard/ads/:id"             element={<Navigate to={ROUTES.ADS} replace />} />
+            <Route path={ROUTES.AUDIENCE}                element={<AudiencePage />} />
+
+
             {/* Products */}
             <Route path={ROUTES.PRODUCTS}     element={<ProductsPage />} />
             <Route path={ROUTES.PRODUCT_NEW}  element={<AddProductPage />} />
-            <Route path="/dashboard/products/:id"      element={<PlaceholderPage title="Product Details" icon="inventory_2"   description="Full product info, variants, and performance." />} />
+            <Route path="/dashboard/products/:id"      element={<Navigate to={ROUTES.PRODUCTS} replace />} />
             <Route path="/dashboard/products/:id/edit" element={<AddProductPage />} />
 
             {/* Orders */}
@@ -98,12 +107,6 @@ export const AppRouter = () => (
             {/* Customers */}
             <Route path={ROUTES.CUSTOMERS}           element={<CustomersPage />} />
             <Route path="/dashboard/customers/:id"   element={<CustomerDetailPage />} />
-
-            {/* Analytics */}
-            <Route path={ROUTES.ANALYTICS} element={<AnalyticsPage />} />
-
-            {/* Media */}
-            <Route path={ROUTES.MEDIA} element={<MediaPage />} />
 
             {/* Settings */}
             <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />

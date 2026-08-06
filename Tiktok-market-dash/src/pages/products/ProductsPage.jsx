@@ -106,7 +106,7 @@ const ProductsPage = () => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto w-full">
+        <div className="table-scroll">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b border-outline-variant/20 bg-surface-container-low/50">
@@ -212,3 +212,4 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
+
