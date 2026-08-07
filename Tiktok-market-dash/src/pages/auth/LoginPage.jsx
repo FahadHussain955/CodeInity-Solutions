@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,11 +8,29 @@ import { loginSchema } from '@/features/auth/authSchemas';
 import AuthErrorAlert from '@/components/auth/AuthErrorAlert';
 import FieldError from '@/components/auth/FieldError';
 import nexoraLogo from '@/assets/nexora-logo.png';
+import { oauthErrorMessage } from '@/utils/oauthErrors';
+import LegalModal from '@/components/legal/LegalModal';
+
+const sessionMessage = (code) => {
+  if (code === 'idle') {
+    return 'You were signed out after 15 minutes of inactivity. Please sign in again.';
+  }
+  if (code === 'expired') {
+    return 'Your session expired. Please sign in again.';
+  }
+  return null;
+};
 
 const LoginPage = () => {
-  const { login, isSubmitting, error, clearError, isAuthenticated } = useAuth();
+  const { login, isSubmitting, error, clearError, isAuthenticated, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [legalDoc, setLegalDoc] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const oauthError = searchParams.get('error');
+  const justRegistered = searchParams.get('registered') === '1';
+  const sessionStatus = searchParams.get('session');
+  const sessionNotice = sessionMessage(sessionStatus);
 
   const {
     register,
@@ -24,7 +42,8 @@ const LoginPage = () => {
       email: '',
       password: '',
     },
-    mode: 'onSubmit',
+    mode: 'onChange',
+    reValidateMode: 'onChange',
   });
 
   useEffect(() => {
@@ -35,8 +54,19 @@ const LoginPage = () => {
 
   useEffect(() => () => clearError(), [clearError]);
 
-  const onSubmit = async (values) => {
+  const dismissAlert = () => {
     clearError();
+    if (searchParams.has('error') || searchParams.has('registered') || searchParams.has('session')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('error');
+      next.delete('registered');
+      next.delete('session');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  const onSubmit = async (values) => {
+    dismissAlert();
     const result = await login(values);
     if (result.ok) {
       navigate(ROUTES.DASHBOARD, { replace: true });
@@ -56,7 +86,7 @@ const LoginPage = () => {
           <img
             src={nexoraLogo}
             alt="Nexora"
-            className="inline-block w-14 h-14 rounded-2xl object-contain mb-4 bg-[#090d2a]"
+            className="inline-block w-16 h-16 object-contain mb-4"
           />
           <h1 className="font-headline-md text-headline-md text-primary mb-1">Nexora</h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant">AI powered commerce growth</p>
@@ -65,7 +95,44 @@ const LoginPage = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 relative z-10" noValidate>
-          <AuthErrorAlert message={error} onDismiss={clearError} />
+          {sessionNotice && !error && !oauthError && (
+            <div
+              role="status"
+              className="rounded-lg border border-warning-border bg-warning-bg px-4 py-3 flex items-start gap-2 text-body-sm text-warning"
+            >
+              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">schedule</span>
+              <p className="flex-1 min-w-0">{sessionNotice}</p>
+              <button
+                type="button"
+                onClick={dismissAlert}
+                className="text-warning/80 hover:text-warning transition-colors shrink-0"
+                aria-label="Dismiss message"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          )}
+          {justRegistered && !error && !oauthError && !sessionNotice && (
+            <div
+              role="status"
+              className="rounded-lg border border-success-border bg-success-bg px-4 py-3 flex items-start gap-2 text-body-sm text-success"
+            >
+              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">check_circle</span>
+              <p className="flex-1 min-w-0">Account created successfully. Please sign in to continue.</p>
+              <button
+                type="button"
+                onClick={dismissAlert}
+                className="text-success/80 hover:text-success transition-colors shrink-0"
+                aria-label="Dismiss message"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          )}
+          <AuthErrorAlert
+            message={error || oauthErrorMessage(oauthError, { page: 'login' })}
+            onDismiss={dismissAlert}
+          />
 
           <div className="space-y-4">
             {/* Email */}
@@ -159,6 +226,7 @@ const LoginPage = () => {
             <button
               type="button"
               disabled={isSubmitting}
+              onClick={loginWithGoogle}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-outline-variant/50 bg-surface-container-lowest/50 hover:bg-surface-variant/50 transition-colors font-label-caps text-label-caps text-on-surface disabled:opacity-60"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -183,14 +251,32 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Legal Links */}
+      {/* Legal Links — modal keeps form data on this page */}
       <div className="mt-6 text-center">
         <div className="flex items-center justify-center gap-4 font-body-sm text-body-sm text-outline">
-          <a href="#" className="hover:text-on-surface transition-colors">Privacy Policy</a>
+          <button
+            type="button"
+            onClick={() => setLegalDoc('privacy')}
+            className="hover:text-on-surface transition-colors"
+          >
+            Privacy Policy
+          </button>
           <span className="w-1 h-1 rounded-full bg-outline-variant" />
-          <a href="#" className="hover:text-on-surface transition-colors">Terms of Service</a>
+          <button
+            type="button"
+            onClick={() => setLegalDoc('terms')}
+            className="hover:text-on-surface transition-colors"
+          >
+            Terms of Service
+          </button>
         </div>
       </div>
+
+      <LegalModal
+        doc={legalDoc}
+        onClose={() => setLegalDoc(null)}
+        onSwitch={setLegalDoc}
+      />
     </main>
   );
 };

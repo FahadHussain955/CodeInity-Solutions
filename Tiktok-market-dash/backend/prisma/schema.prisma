@@ -1,8 +1,35 @@
-// Nexora foundation schema — business models added in later phases.
+// Nexora Prisma schema — auth models (Phase 3)
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum AuthProvider {
+  local
+  google
+}
+
+enum Role {
+  user
+  admin
+}
+
+model User {
+  id              String       @id @default(cuid())
+  fullName        String
+  email           String       @unique
+  password        String?
+  avatar          String?
+  provider        AuthProvider @default(local)
+  providerId      String?
+  role            Role         @default(user)
+  isEmailVerified Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([provider, providerId])
+  @@map("users")
 }

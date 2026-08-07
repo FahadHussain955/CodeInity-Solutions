@@ -2,16 +2,21 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   clearAuthError,
+  fetchCurrentUser,
   loginUser,
   logout,
   logoutUser,
   registerUser,
+  restoreSession,
   setCredentials,
 } from '@/features/auth/authSlice';
+import { authService } from '@/services/authService';
 
 export const useAuth = () => {
   const dispatch = useDispatch();
-  const { user, isAuthenticated, token, status, error } = useSelector((state) => state.auth);
+  const { user, isAuthenticated, token, status, error, initializing } = useSelector(
+    (state) => state.auth
+  );
 
   const isSubmitting = status === 'loading';
 
@@ -45,13 +50,30 @@ export const useAuth = () => {
     dispatch(clearAuthError());
   }, [dispatch]);
 
-  /** Direct credential set (e.g. future OAuth callbacks). */
   const applyCredentials = useCallback(
     (credentials) => {
       dispatch(setCredentials(credentials));
     },
     [dispatch]
   );
+
+  const refreshUser = useCallback(async () => {
+    const result = await dispatch(fetchCurrentUser());
+    return fetchCurrentUser.fulfilled.match(result);
+  }, [dispatch]);
+
+  const restore = useCallback(async () => {
+    const result = await dispatch(restoreSession());
+    return restoreSession.fulfilled.match(result);
+  }, [dispatch]);
+
+  const loginWithGoogle = useCallback(() => {
+    authService.startGoogleLogin();
+  }, []);
+
+  const registerWithGoogle = useCallback(() => {
+    authService.startGoogleRegister();
+  }, []);
 
   return {
     user,
@@ -60,12 +82,16 @@ export const useAuth = () => {
     status,
     error,
     isSubmitting,
+    initializing,
     login,
     register,
     logout: logoutUserAction,
     clearError,
     setCredentials: applyCredentials,
-    // sync logout without mock delay (navbar / profile)
+    refreshUser,
+    restoreSession: restore,
+    loginWithGoogle,
+    registerWithGoogle,
     logoutSync: () => dispatch(logout()),
   };
 };

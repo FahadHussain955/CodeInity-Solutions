@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { ROUTES } from '@/constants/routes';
 import PublicRoute from './PublicRoute';
 import ProtectedRoute from './ProtectedRoute';
+import SessionIdleGuard from '@/components/auth/SessionIdleGuard';
 
 // Layouts
 import AuthLayout from '@/layouts/AuthLayout';
@@ -11,6 +12,9 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 // ── Auth Pages ──────────────────────────────────────────────────────────────
 const LoginPage    = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
+const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallbackPage'));
+const TermsPage = lazy(() => import('@/pages/legal/TermsPage'));
+const PrivacyPage = lazy(() => import('@/pages/legal/PrivacyPage'));
 
 // ── TikTok Ads Pages ────────────────────────────────────────────────────────
 const CampaignsPage     = lazy(() => import('@/pages/campaigns/CampaignsPage'));
@@ -50,7 +54,7 @@ const LoadingFallback = () => (
       <img
         src="/nexora-logo.png"
         alt="Nexora"
-        className="w-10 h-10 rounded-xl object-contain animate-pulse bg-[#090d2a]"
+        className="w-12 h-12 object-contain animate-pulse"
       />
       <p className="text-body-sm text-on-surface-variant">Loading Nexora...</p>
     </div>
@@ -59,10 +63,18 @@ const LoadingFallback = () => (
 
 export const AppRouter = () => (
   <BrowserRouter>
-    <Suspense fallback={<LoadingFallback />}>
-      <Routes>
+    <SessionIdleGuard>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
         {/* Root redirect */}
         <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+
+        {/* Google OAuth return — outside guest/auth layout gates */}
+        <Route path={ROUTES.AUTH_CALLBACK} element={<AuthCallbackPage />} />
+
+        {/* Public legal pages (no auth gate) */}
+        <Route path={ROUTES.TERMS} element={<TermsPage />} />
+        <Route path={ROUTES.PRIVACY} element={<PrivacyPage />} />
 
         {/* ── Public (Auth) Routes ─────────────────────────────────────── */}
         <Route element={<PublicRoute />}>
@@ -120,6 +132,7 @@ export const AppRouter = () => (
         {/* 404 */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-    </Suspense>
+      </Suspense>
+    </SessionIdleGuard>
   </BrowserRouter>
 );

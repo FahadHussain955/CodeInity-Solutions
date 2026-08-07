@@ -8,11 +8,22 @@ export const errorHandler = (err, _req, res, _next) => {
   let code = err.code || 'INTERNAL_ERROR';
 
   if (!(err instanceof ApiError)) {
-    // Prisma / driver style codes
-    if (err.code === 'P1001' || err.code === 'ECONNREFUSED') {
+    const prismaCode = err.code;
+    const msg = String(err.message || '');
+    const isDbDown =
+      prismaCode === 'P1001' ||
+      prismaCode === 'P1017' ||
+      prismaCode === 'ECONNREFUSED' ||
+      msg.includes('ECONNREFUSED') ||
+      msg.includes("Can't reach database server") ||
+      msg.includes('connect ECONNREFUSED');
+
+    if (isDbDown) {
       statusCode = 503;
-      message = 'Database unavailable';
+      message =
+        'Database unavailable. Start PostgreSQL and run migrations (see AUTHENTICATION_DOCUMENTATION.md).';
       code = 'DB_UNAVAILABLE';
+      errors = [];
     } else if (env.isProd) {
       message = 'Internal server error';
       code = 'INTERNAL_ERROR';

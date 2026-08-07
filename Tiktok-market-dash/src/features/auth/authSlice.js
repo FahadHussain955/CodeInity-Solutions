@@ -1,27 +1,42 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { authService } from '@/services/authService';
 import { storage } from '@/utils/storage';
+import { AUTH_ACTIVITY_KEY, AUTH_STORAGE_KEY } from '@/constants/auth';
 
-export const AUTH_STORAGE_KEY = 'nexora_auth';
+export { AUTH_STORAGE_KEY };
 
 const loadPersistedAuth = () => {
   const persisted = storage.get(AUTH_STORAGE_KEY);
-  if (!persisted?.token || !persisted?.user) {
-    return { user: null, token: null, isAuthenticated: false };
+  if (!persisted?.token) {
+    return { user: null, token: null, refreshToken: null, isAuthenticated: false };
   }
   return {
-    user: persisted.user,
+    user: persisted.user || null,
     token: persisted.token,
-    isAuthenticated: true,
+    refreshToken: persisted.refreshToken || null,
+    isAuthenticated: Boolean(persisted.token),
   };
 };
 
-const persistAuth = (user, token) => {
-  storage.set(AUTH_STORAGE_KEY, { user, token });
+const persistAuth = (user, token, refreshToken) => {
+  storage.set(AUTH_STORAGE_KEY, { user, token, refreshToken: refreshToken || null });
 };
 
 const clearPersistedAuth = () => {
   storage.remove(AUTH_STORAGE_KEY);
+  try {
+    sessionStorage.removeItem(AUTH_ACTIVITY_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
+const touchActivity = () => {
+  try {
+    sessionStorage.setItem(AUTH_ACTIVITY_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
 };
 
 const persisted = loadPersistedAuth();
@@ -29,9 +44,11 @@ const persisted = loadPersistedAuth();
 const initialState = {
   user: persisted.user,
   token: persisted.token,
+  refreshToken: persisted.refreshToken,
   isAuthenticated: persisted.isAuthenticated,
-  status: 'idle', // idle | loading | succeeded | failed
+  status: 'idle',
   error: null,
+  initializing: Boolean(persisted.token),
 };
 
 export const loginUser = createAsyncThunk(
@@ -56,6 +73,63 @@ export const registerUser = createAsyncThunk(
   }
 );
 
+export const refreshSession = createAsyncThunk(
+  'auth/refresh',
+  async (_, { getState, rejectWithValue }) => {
+    const { refreshToken } = getState().auth;
+    if (!refreshToken) {
+      return rejectWithValue('No refresh token.');
+    }
+    try {
+      return await authService.refresh(refreshToken);
+    } catch (error) {
+      return rejectWithValue(error.message || 'Session expired.');
+    }
+  }
+);
+
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/me',
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await authService.getMe();
+      return user;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Session expired.');
+    }
+  }
+);
+
+export const restoreSession = createAsyncThunk(
+  'auth/restoreSession',
+  async (_, { getState, rejectWithValue }) => {
+    const { token, refreshToken } = getState().auth;
+    if (!token && !refreshToken) return null;
+
+    try {
+      if (token) {
+        const user = await authService.getMe();
+        return { user, token, refreshToken };
+      }
+    } catch {
+      /* try refresh below */
+    }
+
+    if (!refreshToken) {
+      clearPersistedAuth();
+      return rejectWithValue('Session expired.');
+    }
+
+    try {
+      const session = await authService.refresh(refreshToken);
+      return session;
+    } catch (error) {
+      clearPersistedAuth();
+      return rejectWithValue(error.message || 'Session expired.');
+    }
+  }
+);
+
 export const logoutUser = createAsyncThunk('auth/logout', async () => {
   try {
     await authService.logout();
@@ -65,13 +139,25 @@ export const logoutUser = createAsyncThunk('auth/logout', async () => {
   return true;
 });
 
-const applyCredentials = (state, { user, token }) => {
+const applyCredentials = (state, { user, token, refreshToken }) => {
   state.user = user;
   state.token = token;
+  state.refreshToken = refreshToken || state.refreshToken || null;
   state.isAuthenticated = true;
   state.status = 'succeeded';
   state.error = null;
-  persistAuth(user, token);
+  state.initializing = false;
+  persistAuth(user, token, state.refreshToken);
+  touchActivity();
+};
+
+const clearSessionState = (state) => {
+  state.user = null;
+  state.token = null;
+  state.refreshToken = null;
+  state.isAuthenticated = false;
+  state.initializing = false;
+  clearPersistedAuth();
 };
 
 const authSlice = createSlice({
@@ -86,12 +172,9 @@ const authSlice = createSlice({
       if (state.status === 'failed') state.status = 'idle';
     },
     logout: (state) => {
-      state.user = null;
-      state.token = null;
-      state.isAuthenticated = false;
       state.status = 'idle';
       state.error = null;
-      clearPersistedAuth();
+      clearSessionState(state);
     },
   },
   extraReducers: (builder) => {
@@ -112,21 +195,52 @@ const authSlice = createSlice({
         state.status = 'loading';
         state.error = null;
       })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        applyCredentials(state, action.payload);
+      .addCase(registerUser.fulfilled, (state) => {
+        state.status = 'succeeded';
+        state.error = null;
+        clearSessionState(state);
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload || 'Unable to create account. Please try again.';
         state.isAuthenticated = false;
       })
-      .addCase(logoutUser.pending, (state) => {
-        state.user = null;
-        state.token = null;
-        state.isAuthenticated = false;
+      .addCase(refreshSession.fulfilled, (state, action) => {
+        applyCredentials(state, action.payload);
+      })
+      .addCase(refreshSession.rejected, (state) => {
         state.status = 'idle';
         state.error = null;
-        clearPersistedAuth();
+        clearSessionState(state);
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.initializing = false;
+        if (state.token) persistAuth(action.payload, state.token, state.refreshToken);
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        clearSessionState(state);
+      })
+      .addCase(restoreSession.pending, (state) => {
+        state.initializing = true;
+      })
+      .addCase(restoreSession.fulfilled, (state, action) => {
+        state.initializing = false;
+        if (action.payload?.user && action.payload?.token) {
+          applyCredentials(state, action.payload);
+        } else if (!state.token) {
+          state.isAuthenticated = false;
+        }
+      })
+      .addCase(restoreSession.rejected, (state) => {
+        state.status = 'idle';
+        clearSessionState(state);
+      })
+      .addCase(logoutUser.pending, (state) => {
+        state.status = 'idle';
+        state.error = null;
+        clearSessionState(state);
       })
       .addCase(logoutUser.fulfilled, () => {
         /* session already cleared in pending */

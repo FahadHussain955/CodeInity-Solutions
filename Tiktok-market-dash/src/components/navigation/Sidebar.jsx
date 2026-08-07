@@ -57,7 +57,7 @@ const Sidebar = () => {
         <img
           src={nexoraLogo}
           alt="Nexora"
-          className="w-10 h-10 rounded-[10px] object-contain shrink-0 bg-[#090d2a]"
+          className="w-9 h-9 object-contain shrink-0"
         />
         <div className="min-w-0">
           <h1 className="text-body-md font-bold text-on-background leading-none">Nexora</h1>

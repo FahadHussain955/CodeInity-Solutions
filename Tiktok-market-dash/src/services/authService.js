@@ -1,110 +1,127 @@
-import { storage } from '@/utils/storage';
+import { axiosPublic, axiosPrivate } from '@/lib/axios';
+import { API_BASE_URL } from '@/constants/config';
 
-const MOCK_DELAY_MS = 900;
-const USERS_KEY = 'nexora_mock_users';
-
-const delay = (ms = MOCK_DELAY_MS) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
-const createToken = () =>
-  `nexora_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
-
-const createId = () =>
-  `usr_${Math.random().toString(36).slice(2, 10)}`;
-
-const seedUsers = () => {
-  const existing = storage.get(USERS_KEY);
-  if (Array.isArray(existing) && existing.length > 0) return existing;
-
-  const seeded = [
-    {
-      id: 'usr_demo',
-      name: 'Enterprise User',
-      email: 'demo@nexora.com',
-      password: 'Demo1234!',
-      createdAt: new Date().toISOString(),
-    },
-  ];
-  storage.set(USERS_KEY, seeded);
-  return seeded;
+const getErrorMessage = (error, fallback) => {
+  const data = error?.response?.data;
+  if (data?.code === 'DB_UNAVAILABLE') {
+    return 'Database is offline. Start PostgreSQL, run migrations, then try again.';
+  }
+  if (typeof data?.message === 'string' && data.message) return data.message;
+  if (Array.isArray(data?.errors) && data.errors[0]?.message) return data.errors[0].message;
+  if (!error?.response) {
+    return 'Cannot reach the API. Make sure the backend is running on port 5000.';
+  }
+  return error?.message || fallback;
 };
 
-const getUsers = () => seedUsers();
-
-const saveUsers = (users) => storage.set(USERS_KEY, users);
-
-const toPublicUser = (user) => ({
-  id: user.id,
-  name: user.name,
-  email: user.email,
-});
-
 export class AuthApiError extends Error {
-  constructor(message, { code = 'AUTH_ERROR', status = 400 } = {}) {
+  constructor(message, { code = 'AUTH_ERROR', status = 400, errors = [] } = {}) {
     super(message);
     this.name = 'AuthApiError';
     this.code = code;
     this.status = status;
+    this.errors = errors;
   }
 }
 
+const unwrapAuthPayload = (response) => {
+  const payload = response?.data?.data;
+  if (!payload?.token || !payload?.user) {
+    throw new AuthApiError('Unexpected auth response from server.', { status: 500 });
+  }
+  return {
+    user: payload.user,
+    token: payload.token,
+    refreshToken: payload.refreshToken || null,
+  };
+};
+
 /**
- * Auth service — mock today, swap internals for real HTTP later.
- * Keep method signatures stable so pages/hooks stay unchanged.
+ * Real HTTP auth service — talks to Nexora backend `/api/v1/auth/*`.
  */
 export const authService = {
   async login({ email, password }) {
-    await delay();
-
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    const user = getUsers().find((entry) => entry.email.toLowerCase() === normalizedEmail);
-
-    if (!user || user.password !== password) {
-      throw new AuthApiError('Invalid email or password.', {
-        code: 'INVALID_CREDENTIALS',
-        status: 401,
+    try {
+      const response = await axiosPublic.post('/auth/login', { email, password });
+      return unwrapAuthPayload(response);
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Unable to sign in.'), {
+        code: error?.response?.data?.code || 'LOGIN_FAILED',
+        status: error?.response?.status || 400,
+        errors: error?.response?.data?.errors || [],
       });
     }
-
-    return {
-      user: toPublicUser(user),
-      token: createToken(),
-    };
   },
 
-  async register({ name, email, password }) {
-    await delay();
-
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    const users = getUsers();
-
-    if (users.some((entry) => entry.email.toLowerCase() === normalizedEmail)) {
-      throw new AuthApiError('An account with this email already exists.', {
-        code: 'EMAIL_TAKEN',
-        status: 409,
+  async register({ name, fullName, email, password }) {
+    try {
+      const response = await axiosPublic.post('/auth/register', {
+        fullName: fullName || name,
+        email,
+        password,
+      });
+      const user = response?.data?.data?.user;
+      if (!user) {
+        throw new AuthApiError('Unexpected register response from server.', { status: 500 });
+      }
+      return { user };
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Unable to create account.'), {
+        code: error?.response?.data?.code || 'REGISTER_FAILED',
+        status: error?.response?.status || 400,
+        errors: error?.response?.data?.errors || [],
       });
     }
+  },
 
-    const user = {
-      id: createId(),
-      name: String(name || '').trim(),
-      email: normalizedEmail,
-      password,
-      createdAt: new Date().toISOString(),
-    };
+  async refresh(refreshToken) {
+    try {
+      const response = await axiosPublic.post('/auth/refresh', { refreshToken });
+      return unwrapAuthPayload(response);
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Session expired. Please sign in again.'), {
+        code: error?.response?.data?.code || 'REFRESH_FAILED',
+        status: error?.response?.status || 401,
+      });
+    }
+  },
 
-    saveUsers([...users, user]);
-
-    return {
-      user: toPublicUser(user),
-      token: createToken(),
-    };
+  async getMe() {
+    try {
+      const response = await axiosPrivate.get('/auth/me');
+      const user = response?.data?.data?.user;
+      if (!user) {
+        throw new AuthApiError('Unable to load current user.', { status: 401 });
+      }
+      return user;
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Session expired. Please sign in again.'), {
+        code: error?.response?.data?.code || 'SESSION_INVALID',
+        status: error?.response?.status || 401,
+      });
+    }
   },
 
   async logout() {
-    await delay(200);
+    try {
+      await axiosPrivate.post('/auth/logout');
+    } catch {
+      /* client still clears local session */
+    }
     return { success: true };
+  },
+
+  getGoogleAuthUrl(intent = 'login') {
+    const base = API_BASE_URL.replace(/\/$/, '');
+    const mode = intent === 'register' ? 'register' : 'login';
+    return `${base}/auth/google?redirect=1&intent=${mode}`;
+  },
+
+  startGoogleLogin() {
+    window.location.assign(this.getGoogleAuthUrl('login'));
+  },
+
+  startGoogleRegister() {
+    window.location.assign(this.getGoogleAuthUrl('register'));
   },
 };

@@ -21,7 +21,8 @@ if (!env.isProd) {
 }
 
 export const connectDatabase = async () => {
-  await prisma.$connect();
+  // Driver adapters may no-op $connect(); verify with a real query.
+  await prisma.$queryRawUnsafe('SELECT 1');
 };
 
 export const disconnectDatabase = async () => {

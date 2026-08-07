@@ -2,8 +2,11 @@ export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
+  AUTH_CALLBACK: '/auth/callback',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
+  TERMS: '/terms',
+  PRIVACY: '/privacy',
 
   // Dashboard
   DASHBOARD: '/dashboard',

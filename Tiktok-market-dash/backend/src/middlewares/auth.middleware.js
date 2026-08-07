@@ -1,11 +1,9 @@
-import jwt from 'jsonwebtoken';
-import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { verifyAccessToken } from '../utils/jwt.js';
 
 /**
- * Auth middleware scaffold for Phase 3.
- * Verifies Bearer JWT when present; does not implement login/register.
+ * JWT auth middleware — requires Authorization: Bearer <access token>.
  */
 export const authenticate = asyncHandler(async (req, _res, next) => {
   const header = req.headers.authorization;
@@ -20,7 +18,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   }
 
   try {
-    const payload = jwt.verify(token, env.jwt.accessSecret);
+    const payload = verifyAccessToken(token);
     req.user = {
       id: payload.sub || payload.id,
       email: payload.email,
@@ -41,7 +39,7 @@ export const optionalAuthenticate = asyncHandler(async (req, _res, next) => {
   if (!token) return next();
 
   try {
-    const payload = jwt.verify(token, env.jwt.accessSecret);
+    const payload = verifyAccessToken(token);
     req.user = {
       id: payload.sub || payload.id,
       email: payload.email,

@@ -6,7 +6,7 @@ export const healthService = {
     let database = 'disconnected';
 
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$queryRawUnsafe('SELECT 1');
       database = 'connected';
     } catch {
       database = 'disconnected';

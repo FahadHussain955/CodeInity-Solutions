@@ -19,6 +19,12 @@ cp .env.example .env
 
 2. Update `DATABASE_URL` in `.env` to your PostgreSQL instance.
 
+   Or start a local Postgres with Docker:
+
+```bash
+docker compose up -d
+```
+
 3. Install & generate Prisma client:
 
 ```bash
@@ -70,8 +76,13 @@ backend/
 └── package.json
 ```
 
-## Notes
+## Auth (Phase 3)
 
-- Business modules (Products, Orders, Auth APIs, etc.) are intentionally not implemented in this phase.
-- `authenticate` / `optionalAuthenticate` middleware is ready for JWT once auth is added.
-- Multer is configured under `src/config/multer.js` but no upload routes are registered yet.
+See [docs/AUTH.md](./docs/AUTH.md) for JWT + Google OAuth setup, endpoints, and env vars.
+
+```bash
+npx prisma migrate deploy   # apply User model
+npm run dev
+```
+
+Google Sign-In requires `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env`.
