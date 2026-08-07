@@ -19,8 +19,8 @@ const AIInsightsPanel = ({ isOpen, onClose }) => {
     {
       category: 'Growth Opportunities',
       icon: 'trending_up',
-      color: 'text-[#137333]',
-      bg: 'bg-[#e6f4ea]',
+      color: 'text-success',
+      bg: 'bg-success-bg',
       items: [
         'Scale "Summer Sale" campaign: ROAS is 4.2x above average.',
         'Target "Lookalike Audience US" for TikTok Shop.',
@@ -29,8 +29,8 @@ const AIInsightsPanel = ({ isOpen, onClose }) => {
     {
       category: 'Budget Optimisation',
       icon: 'payments',
-      color: 'text-[#b06000]',
-      bg: 'bg-[#fef3c7]',
+      color: 'text-warning',
+      bg: 'bg-warning-bg',
       items: [
         'Pause "Underperforming Ad Group 3" to save $120/day.',
         'Reallocate budget to TikTok catalog sales.',
@@ -76,7 +76,7 @@ const AIInsightsPanel = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className="text-headline-md text-on-background">AI Insights</h2>
-              <p className="text-label-caps text-on-surface-variant">Powered by GrowthAI</p>
+              <p className="text-label-caps text-on-surface-variant">Powered by Nexora</p>
             </div>
           </div>
           <button 

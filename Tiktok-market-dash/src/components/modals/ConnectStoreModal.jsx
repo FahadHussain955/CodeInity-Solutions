@@ -82,7 +82,7 @@ const ConnectStoreModal = () => {
         <div className="p-6">
           {status === 'success' ? (
             <div className="flex flex-col items-center justify-center py-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-[#e6f4ea] text-[#137333] flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-success-bg text-success flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-[32px]">check_circle</span>
               </div>
               <h4 className="text-body-lg font-semibold text-on-surface">Connection Successful!</h4>

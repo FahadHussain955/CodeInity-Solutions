@@ -33,11 +33,11 @@ const OrderDetailPage = () => {
           <p className="text-body-sm text-on-surface-variant mt-1">Placed on {order.date} · {order.items} item{order.items > 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
+          <button className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">print</span>
             Print Invoice
           </button>
-          <button className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
+          <button className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">edit</span>
             Update Status
           </button>

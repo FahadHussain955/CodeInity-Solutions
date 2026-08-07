@@ -2,9 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/nexora-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tiktok-market-dash</title>
+    <title>Nexora — AI powered commerce growth</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('nexora_theme') || localStorage.getItem('growthAI_theme');
+          if (t === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

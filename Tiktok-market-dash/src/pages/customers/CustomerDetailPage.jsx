@@ -1,14 +1,18 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { mockCustomers } from '@/data/mockCustomers';
 import { mockOrders } from '@/data/mockOrders';
 import { ROUTES } from '@/constants/routes';
 import StatusBadge from '@/components/ui/StatusBadge';
+import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
 
 const CustomerDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const customer = mockCustomers.find((c) => c.id === id) || mockCustomers[0];
   const orders = mockOrders.slice(0, 3);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const pagedOrders = paginateItems(orders, ordersPage, PAGE_SIZE);
 
   return (
     <div className="space-y-6 py-2">
@@ -29,11 +33,11 @@ const CustomerDetailPage = () => {
           <p className="text-body-sm text-on-surface-variant mt-1">Customer since {customer.joined} · {customer.orders} orders</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
+          <button className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">mail</span>
             Send Email
           </button>
-          <button className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
+          <button className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">edit</span>
             Edit
           </button>
@@ -76,7 +80,7 @@ const CustomerDetailPage = () => {
                   </tr>
                 </thead>
                 <tbody className="text-body-sm divide-y divide-outline-variant/10">
-                  {orders.map((order) => (
+                  {pagedOrders.map((order) => (
                     <tr
                       key={order.id}
                       onClick={() => navigate(`/dashboard/orders/${order.id}`)}
@@ -92,6 +96,7 @@ const CustomerDetailPage = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination current={ordersPage} total={orders.length} pageSize={PAGE_SIZE} onPageChange={setOrdersPage} />
           </div>
         </div>
 

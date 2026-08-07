@@ -49,16 +49,16 @@ const AddProductPage = () => {
                 className="flex items-center gap-2 group"
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-body-sm font-semibold shrink-0 transition-colors ${
-                  i < step ? 'bg-[#137333] text-white' :
+                  i < step ? 'bg-success text-on-primary' :
                   i === step ? 'bg-primary text-on-primary' :
                   'bg-surface-container text-on-surface-variant'
                 }`}>
                   {i < step ? <span className="material-symbols-outlined text-[16px]">check</span> : i + 1}
                 </div>
-                <span className={`text-body-sm font-medium hidden sm:block ${i === step ? 'text-primary' : i < step ? 'text-[#137333]' : 'text-on-surface-variant'}`}>{s}</span>
+                <span className={`text-body-sm font-medium hidden sm:block ${i === step ? 'text-primary' : i < step ? 'text-success' : 'text-on-surface-variant'}`}>{s}</span>
               </button>
               {i < steps.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-3 rounded-full ${i < step ? 'bg-[#137333]' : 'bg-outline-variant/30'}`} />
+                <div className={`flex-1 h-0.5 mx-3 rounded-full ${i < step ? 'bg-success' : 'bg-outline-variant/30'}`} />
               )}
             </div>
           ))}
@@ -120,7 +120,7 @@ const AddProductPage = () => {
                           : 'bg-surface border-outline-variant/50 text-on-surface-variant hover:bg-surface-variant/30'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${s === 'Active' ? 'bg-[#137333]' : 'bg-outline'}`} />
+                      <span className={`w-2 h-2 rounded-full ${s === 'Active' ? 'bg-success' : 'bg-outline'}`} />
                       {s}
                     </button>
                   ))}
@@ -160,9 +160,9 @@ const AddProductPage = () => {
               ))}
             </div>
             {form.price && form.cost && (
-              <div className="mt-4 p-3 bg-[#e6f4ea] border border-[#ceead6] rounded-lg flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px] text-[#137333]" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
-                <span className="text-body-sm text-[#137333]">
+              <div className="mt-4 p-3 bg-success-bg border border-success-border rounded-lg flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] text-success" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
+                <span className="text-body-sm text-success">
                   Profit margin: <strong>{Math.round(((form.price - form.cost) / form.price) * 100)}%</strong>
                 </span>
               </div>

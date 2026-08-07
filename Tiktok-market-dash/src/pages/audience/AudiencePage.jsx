@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { mockAudiences, audienceDemographics } from '@/data/mockAudiences';
 import StatusBadge from '@/components/ui/StatusBadge';
+import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
 
 const TYPE_COLORS = {
   Interest: 'bg-primary/10 text-primary border-primary/20',
-  Lookalike: 'bg-[#e8f0fe] text-[#1a73e8] border-[#aecbfa]',
-  Custom: 'bg-[#e6f4ea] text-[#137333] border-[#ceead6]',
+  Lookalike: 'bg-info-bg text-info border-info-border',
+  Custom: 'bg-success-bg text-success border-success-border',
 };
 
 const AudiencePage = () => {
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
   const demo = audienceDemographics;
+  const rows = paginateItems(mockAudiences, page, PAGE_SIZE);
 
   return (
     <div className="space-y-6 py-2">
@@ -24,16 +27,16 @@ const AudiencePage = () => {
           </div>
           <h2 className="text-display-lg-mobile md:text-display-lg text-on-background">Audience</h2>
         </div>
-        <button className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
+        <button className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
           <span className="material-symbols-outlined text-[18px]">add</span>
           Create Audience
         </button>
       </div>
 
       {/* Pixel Status */}
-      <div className="glass-panel rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-[#ceead6] bg-[#e6f4ea]/30">
+      <div className="glass-panel rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-success-border bg-success-bg/30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#137333] flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-success flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-white text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
           </div>
           <div>
@@ -41,7 +44,7 @@ const AudiencePage = () => {
             <p className="text-body-sm text-on-surface-variant mt-0.5">Firing on all pages · Last event 2 min ago · 4,820 events today</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-[#ceead6] rounded-lg text-body-sm font-medium text-[#137333] bg-[#e6f4ea] hover:bg-[#ceead6] transition-colors shrink-0">
+        <button className="flex items-center gap-2 px-4 py-2 border border-success-border rounded-lg text-body-sm font-medium text-success bg-success-bg hover:bg-success-border transition-colors shrink-0">
           <span className="material-symbols-outlined text-[18px]">settings</span>
           Configure Pixel
         </button>
@@ -54,7 +57,7 @@ const AudiencePage = () => {
             <h3 className="text-headline-md text-on-background">Saved Audiences</h3>
           </div>
           <div className="divide-y divide-outline-variant/10">
-            {mockAudiences.map((aud) => (
+            {rows.map((aud) => (
               <div
                 key={aud.id}
                 onClick={() => setSelected(aud.id === selected ? null : aud.id)}
@@ -93,6 +96,7 @@ const AudiencePage = () => {
               </div>
             ))}
           </div>
+          <Pagination current={page} total={mockAudiences.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </div>
 
         {/* Demographics Panel */}

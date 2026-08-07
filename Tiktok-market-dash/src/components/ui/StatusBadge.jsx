@@ -1,12 +1,14 @@
 const statusConfig = {
-  Active:     { bg: 'bg-[#e6f4ea]', text: 'text-[#137333]', border: 'border-[#ceead6]' },
+  Active:     { bg: 'bg-success-bg', text: 'text-success', border: 'border-success-border' },
+  Paused:     { bg: 'bg-surface-variant', text: 'text-on-surface-variant', border: 'border-outline-variant/50' },
   Draft:      { bg: 'bg-surface-variant', text: 'text-on-surface-variant', border: 'border-outline-variant/50' },
   Archived:   { bg: 'bg-surface-container', text: 'text-outline', border: 'border-outline-variant/30' },
-  Delivered:  { bg: 'bg-[#e6f4ea]', text: 'text-[#137333]', border: 'border-[#ceead6]' },
-  Processing: { bg: 'bg-[#e8f0fe]', text: 'text-[#1a73e8]', border: 'border-[#aecbfa]' },
-  Pending:    { bg: 'bg-[#fef3c7]', text: 'text-[#b06000]', border: 'border-[#fde68a]' },
+  Delivered:  { bg: 'bg-success-bg', text: 'text-success', border: 'border-success-border' },
+  Processing: { bg: 'bg-info-bg', text: 'text-info', border: 'border-info-border' },
+  Pending:    { bg: 'bg-warning-bg', text: 'text-warning', border: 'border-warning-border' },
+  'Under Review': { bg: 'bg-warning-bg', text: 'text-warning', border: 'border-warning-border' },
   Cancelled:  { bg: 'bg-error-container', text: 'text-on-error-container', border: 'border-error/30' },
-  'Low Stock':{ bg: 'bg-[#fef3c7]', text: 'text-[#b06000]', border: 'border-[#fde68a]' },
+  'Low Stock':{ bg: 'bg-warning-bg', text: 'text-warning', border: 'border-warning-border' },
 };
 
 const StatusBadge = ({ status }) => {

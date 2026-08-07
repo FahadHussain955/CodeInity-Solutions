@@ -14,14 +14,14 @@ const Toggle = ({ checked, onChange }) => (
     onClick={() => onChange(!checked)}
     className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${checked ? 'bg-primary' : 'bg-surface-container-high'}`}
   >
-    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface-container-lowest shadow-sm transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
   </button>
 );
 
 const SettingsPage = () => {
   const [active, setActive] = useState('store');
-  const [storeName, setStoreName] = useState('GrowthAI Enterprise');
-  const [storeUrl, setStoreUrl] = useState('growthAI-enterprise.myshopify.com');
+  const [storeName, setStoreName] = useState('Nexora Enterprise');
+  const [storeUrl, setStoreUrl] = useState('nexora-enterprise.myshopify.com');
   const [currency, setCurrency] = useState('USD');
   const [notifs, setNotifs] = useState({ orders: true, inventory: true, customers: false, marketing: true });
 
@@ -102,7 +102,7 @@ const SettingsPage = () => {
                   </div>
                   <div>
                     <label className="block text-label-caps text-on-surface-variant uppercase mb-1.5">Store Description</label>
-                    <textarea rows={3} className={inputClass + ' resize-none'} defaultValue="Enterprise e-commerce powered by GrowthAI." />
+                    <textarea rows={3} className={inputClass + ' resize-none'} defaultValue="Enterprise e-commerce powered by Nexora." />
                   </div>
                 </div>
               </div>
@@ -158,7 +158,7 @@ const SettingsPage = () => {
                           <div className="flex items-center gap-2">
                             <p className="text-body-md font-semibold text-on-surface">{name}</p>
                             {isThisConnected && (
-                              <span className="flex items-center gap-1 text-label-caps text-[#137333] bg-[#e6f4ea] border border-[#ceead6] px-2 py-0.5 rounded-full">
+                              <span className="flex items-center gap-1 text-label-caps text-success bg-success-bg border border-success-border px-2 py-0.5 rounded-full">
                                 <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                                 Connected
                               </span>
@@ -262,7 +262,7 @@ const SettingsPage = () => {
                         </div>
                       </div>
                       {current ? (
-                        <span className="text-label-caps text-[#137333] bg-[#e6f4ea] px-2 py-0.5 rounded-full border border-[#ceead6]">Current</span>
+                        <span className="text-label-caps text-success bg-success-bg px-2 py-0.5 rounded-full border border-success-border">Current</span>
                       ) : (
                         <button className="text-body-sm text-error hover:underline">Revoke</button>
                       )}

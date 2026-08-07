@@ -1,12 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { useStoreConnection } from '@/contexts/StoreConnectionContext';
-
-const TikTokIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current shrink-0">
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.84a8.16 8.16 0 0 0 4.77 1.52V6.92a4.85 4.85 0 0 1-1-.23z" />
-  </svg>
-);
+import nexoraLogo from '@/assets/nexora-logo.png';
 
 const tiktokItems = [
   { label: 'Campaigns', iconType: 'material', icon: 'campaign', route: ROUTES.CAMPAIGNS },
@@ -38,10 +33,7 @@ const NavItem = ({ label, icon, route, iconType, end }) => (
   >
     {({ isActive }) => (
       <>
-        {iconType === 'tiktok'
-          ? <span className={isActive ? 'text-on-primary-container' : 'text-on-surface-variant'}><TikTokIcon /></span>
-          : <span className="material-symbols-outlined text-[20px] transition-colors shrink-0" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
-        }
+        <span className="material-symbols-outlined text-[20px] transition-colors shrink-0" style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}>{icon}</span>
         <span className="text-body-sm font-medium">{label}</span>
       </>
     )}
@@ -59,15 +51,17 @@ const Sidebar = () => {
   const { isConnected, openConnectModal } = useStoreConnection();
 
   return (
-    <nav className="hidden md:flex flex-col h-full border-r border-outline-variant/30 bg-surface-container-low fixed left-0 top-0 w-sidebar-width z-50">
+    <nav className="hidden md:flex flex-col h-full border-r border-outline-variant/30 bg-sidebar fixed left-0 top-0 w-sidebar-width z-50 transition-colors duration-200">
       {/* Logo */}
-      <div className="px-5 py-6 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center shrink-0">
-          <TikTokIcon />
-        </div>
-        <div>
-          <h1 className="text-body-md font-bold text-on-background leading-none">GrowthAI</h1>
-          <p className="text-label-caps text-on-surface-variant mt-0.5">TikTok Marketing</p>
+      <div className="px-5 py-5 flex items-center gap-3">
+        <img
+          src={nexoraLogo}
+          alt="Nexora"
+          className="w-10 h-10 rounded-[10px] object-contain shrink-0 bg-[#090d2a]"
+        />
+        <div className="min-w-0">
+          <h1 className="text-body-md font-bold text-on-background leading-none">Nexora</h1>
+          <p className="text-[10px] leading-snug text-on-surface-variant mt-1">AI powered commerce growth</p>
         </div>
       </div>
 
@@ -76,12 +70,12 @@ const Sidebar = () => {
         <NavItem label="Dashboard" icon="dashboard" route={ROUTES.DASHBOARD} end />
 
         <Divider />
-        <SectionLabel>TikTok Ads</SectionLabel>
-        {tiktokItems.map((item) => <NavItem key={item.route} {...item} />)}
-
-        <Divider />
         <SectionLabel>Store</SectionLabel>
         {storeItems.map((item) => <NavItem key={item.route} {...item} />)}
+
+        <Divider />
+        <SectionLabel>TikTok Ads</SectionLabel>
+        {tiktokItems.map((item) => <NavItem key={item.route} {...item} />)}
 
         <Divider />
         {bottomItems.map((item) => <NavItem key={item.route} {...item} />)}

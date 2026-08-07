@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Uploads (multer destination — configured later)
+uploads/
+tmp/
+
+# Prisma
+# (keep migrations in git; ignore only local query engine caches if any)
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Coverage / build
+coverage/
+dist/

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,14 +9,36 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate(ROUTES.LOGIN);
   };
 
+  useEffect(() => {
+    if (!profileOpen) return undefined;
+
+    const onPointerDown = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setProfileOpen(false);
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [profileOpen]);
+
   return (
-    <header className="flex justify-between items-center px-container-margin h-18 z-40 fixed top-0 right-0 w-full md:w-[calc(100%-260px)] bg-surface/60 backdrop-blur-xl border-b border-outline-variant/20 shadow-sm transition-all duration-300">
+    <header className="flex justify-between items-center px-container-margin h-18 z-40 fixed top-0 right-0 w-full md:w-[calc(100%-260px)] bg-navbar/80 backdrop-blur-xl border-b border-outline-variant/20 shadow-sm transition-all duration-300">
       {/* Mobile Menu Toggle */}
       <button
         onClick={onMenuToggle}
@@ -36,14 +58,12 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
             placeholder={searchPlaceholder}
             type="text"
           />
-
         </div>
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-4 ml-auto">
-        {/* AI Insights */}
-        <button 
+        <button
           onClick={onInsightsClick}
           className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors font-body-sm text-body-sm font-medium"
         >
@@ -53,13 +73,11 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
 
         <div className="h-6 w-px bg-outline-variant/30 mx-2 hidden sm:block" />
 
-        {/* Notifications */}
         <button className="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant/50 relative">
           <span className="material-symbols-outlined">notifications</span>
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full border-2 border-surface" />
         </button>
 
-        {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
           className="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant/50 hidden sm:block"
@@ -68,10 +86,12 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
           <span className="material-symbols-outlined">contrast</span>
         </button>
 
-        {/* Profile */}
-        <div className="relative ml-2">
+        <div className="relative ml-2" ref={profileRef}>
           <button
+            type="button"
             onClick={() => setProfileOpen((o) => !o)}
+            aria-expanded={profileOpen}
+            aria-haspopup="menu"
             className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             <img
@@ -82,27 +102,36 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 top-10 w-48 glass-panel rounded-xl shadow-lg border border-outline-variant/20 overflow-hidden z-50">
+            <div
+              role="menu"
+              className="absolute right-0 top-10 w-52 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-lg p-1.5 z-50"
+            >
               <button
+                type="button"
+                role="menuitem"
                 onClick={() => { navigate(ROUTES.PROFILE); setProfileOpen(false); }}
-                className="w-full flex items-center gap-2 px-4 py-3 text-on-surface hover:bg-surface-variant/40 transition-colors font-body-sm text-body-sm"
+                className="w-full h-11 flex items-center gap-3 px-4 rounded-lg text-on-surface bg-transparent hover:bg-surface-variant/50 transition-colors duration-150 font-body-sm text-body-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">person</span>
+                <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">person</span>
                 Profile
               </button>
               <button
+                type="button"
+                role="menuitem"
                 onClick={() => { navigate(ROUTES.SETTINGS); setProfileOpen(false); }}
-                className="w-full flex items-center gap-2 px-4 py-3 text-on-surface hover:bg-surface-variant/40 transition-colors font-body-sm text-body-sm"
+                className="w-full h-11 flex items-center gap-3 px-4 rounded-lg text-on-surface bg-transparent hover:bg-surface-variant/50 transition-colors duration-150 font-body-sm text-body-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">settings</span>
+                <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">settings</span>
                 Settings
               </button>
-              <div className="h-px bg-outline-variant/20 mx-4" />
+              <div className="h-px bg-outline-variant/30 my-1.5 mx-2" role="separator" />
               <button
+                type="button"
+                role="menuitem"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-4 py-3 text-error hover:bg-error-container/40 transition-colors font-body-sm text-body-sm"
+                className="w-full h-11 flex items-center gap-3 px-4 rounded-lg text-error bg-transparent hover:bg-error-container transition-colors duration-150 font-body-sm text-body-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">logout</span>
+                <span className="material-symbols-outlined text-[18px] text-error shrink-0">logout</span>
                 Sign Out
               </button>
             </div>

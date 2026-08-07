@@ -47,12 +47,12 @@ const NotFoundPage    = lazy(() => import('@/pages/system/NotFoundPage'));
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-4">
-      <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center animate-pulse">
-        <span className="material-symbols-outlined text-on-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>
-          insights
-        </span>
-      </div>
-      <p className="text-body-sm text-on-surface-variant">Loading GrowthAI...</p>
+      <img
+        src="/nexora-logo.png"
+        alt="Nexora"
+        className="w-10 h-10 rounded-xl object-contain animate-pulse bg-[#090d2a]"
+      />
+      <p className="text-body-sm text-on-surface-variant">Loading Nexora...</p>
     </div>
   </div>
 );

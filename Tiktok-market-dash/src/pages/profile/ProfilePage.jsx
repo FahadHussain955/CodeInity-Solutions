@@ -2,8 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { useAuth } from '@/hooks/useAuth';
+import FilterTabs from '@/components/ui/FilterTabs';
 
-const TABS = ['Overview', 'Activity', 'Security'];
+const TABS = [
+  { key: 'Overview', label: 'Overview' },
+  { key: 'Activity', label: 'Activity' },
+  { key: 'Security', label: 'Security' },
+];
 
 const ProfilePage = () => {
   const { logout } = useAuth();
@@ -11,7 +16,7 @@ const ProfilePage = () => {
   const [tab, setTab] = useState('Overview');
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('Enterprise User');
-  const [email, setEmail] = useState('user@growthAI.com');
+  const [email, setEmail] = useState('user@nexora.com');
   const [phone, setPhone] = useState('+92 300 0000000');
   const [role, setRole] = useState('Admin');
 
@@ -55,7 +60,7 @@ const ProfilePage = () => {
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-body-sm text-on-surface-variant">{role}</span>
                   <span className="w-1 h-1 rounded-full bg-outline" />
-                  <span className="inline-flex items-center gap-1 text-label-caps text-[#137333]">
+                  <span className="inline-flex items-center gap-1 text-label-caps text-success">
                     <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
                     Verified
                   </span>
@@ -65,14 +70,14 @@ const ProfilePage = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setEditing((e) => !e)}
-                className="flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm"
+                className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm"
               >
                 <span className="material-symbols-outlined text-[18px]">{editing ? 'close' : 'edit'}</span>
                 {editing ? 'Cancel' : 'Edit Profile'}
               </button>
               <button
                 onClick={() => { logout(); navigate(ROUTES.LOGIN); }}
-                className="flex items-center gap-2 bg-error-container text-on-error-container px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-error/10 transition-colors shadow-sm"
+                className="toolbar-control flex items-center gap-2 bg-error-container text-on-error-container px-4 rounded-lg text-body-sm font-medium hover:bg-error/10 transition-colors shadow-sm"
               >
                 <span className="material-symbols-outlined text-[18px]">logout</span>
                 Sign Out
@@ -83,17 +88,7 @@ const ProfilePage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 p-1 bg-surface-container-low rounded-lg border border-outline-variant/30 w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-md text-body-sm transition-colors ${tab === t ? 'bg-surface shadow-sm text-primary font-medium' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30'}`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <FilterTabs tabs={TABS} value={tab} onChange={setTab} />
 
       {/* Overview Tab */}
       {tab === 'Overview' && (

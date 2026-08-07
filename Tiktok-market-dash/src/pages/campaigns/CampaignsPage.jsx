@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockCampaigns, campaignStats } from '@/data/mockCampaigns';
 import StatusBadge from '@/components/ui/StatusBadge';
+import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
+import FilterTabs from '@/components/ui/FilterTabs';
 
 const fmt = (n) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n;
 
@@ -14,17 +16,24 @@ const TABS = [
 
 const objectiveColor = {
   Conversions: 'bg-primary/10 text-primary border-primary/20',
-  Traffic: 'bg-[#e8f0fe] text-[#1a73e8] border-[#aecbfa]',
-  Awareness: 'bg-[#fef3c7] text-[#b06000] border-[#fde68a]',
+  Traffic: 'bg-info-bg text-info border-info-border',
+  Awareness: 'bg-warning-bg text-warning border-warning-border',
 };
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
+  const [page, setPage] = useState(1);
 
-  const filtered = mockCampaigns.filter(
+  const filtered = useMemo(() => mockCampaigns.filter(
     (c) => activeTab === 'all' || c.status.toLowerCase() === activeTab
-  );
+  ), [activeTab]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
+
+  const rows = paginateItems(filtered, page, PAGE_SIZE);
 
   return (
     <div className="space-y-6 py-2">
@@ -39,13 +48,13 @@ const CampaignsPage = () => {
           <h2 className="text-display-lg-mobile md:text-display-lg text-on-background">Campaigns</h2>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
+          <button className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export Report
           </button>
           <button
             onClick={() => navigate('/dashboard/campaigns/new')}
-            className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
+            className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             New Campaign
@@ -86,8 +95,8 @@ const CampaignsPage = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-body-sm font-semibold text-on-surface">@growthAI_store</p>
-              <span className="flex items-center gap-1 text-label-caps text-[#137333] bg-[#e6f4ea] border border-[#ceead6] px-2 py-0.5 rounded-full">
+              <p className="text-body-sm font-semibold text-on-surface">@nexora_store</p>
+              <span className="flex items-center gap-1 text-label-caps text-success bg-success-bg border border-success-border px-2 py-0.5 rounded-full">
                 <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
                 Connected
               </span>
@@ -101,28 +110,14 @@ const CampaignsPage = () => {
         </button>
       </div>
 
-      {/* Campaign Table */}
-      <div className="glass-panel rounded-xl flex flex-col shadow-sm">
-        <div className="p-6 border-b border-outline-variant/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex space-x-1 p-1 bg-surface-container-low rounded-lg border border-outline-variant/30">
-            {TABS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`px-3 py-1.5 rounded-md text-body-sm transition-colors capitalize ${
-                  activeTab === key
-                    ? 'bg-surface shadow-sm text-primary font-medium'
-                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/30'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Toolbar — no outer card */}
+      <div className="table-toolbar">
+        <FilterTabs tabs={TABS} value={activeTab} onChange={setActiveTab} />
+      </div>
 
+      <div className="glass-panel rounded-xl flex flex-col shadow-sm overflow-hidden">
         <div className="table-scroll">
-          <table className="w-full text-left border-collapse whitespace-nowrap" style={{ minWidth: '900px' }}>
+          <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
               <tr className="border-b border-outline-variant/20 bg-surface-container-low/50">
                 {['Campaign', 'Objective', 'Budget / Spent', 'Impressions', 'Clicks', 'CTR', 'Conv.', 'ROAS', 'Status', ''].map((h) => (
@@ -131,7 +126,7 @@ const CampaignsPage = () => {
               </tr>
             </thead>
             <tbody className="text-body-sm divide-y divide-outline-variant/10">
-              {filtered.map((c) => {
+              {rows.map((c) => {
                 const pct = c.budget > 0 ? Math.round((c.spent / c.budget) * 100) : 0;
                 return (
                   <tr
@@ -184,7 +179,7 @@ const CampaignsPage = () => {
                     {/* ROAS */}
                     <td className="py-3 px-4">
                       {c.roas > 0 ? (
-                        <span className={`font-mono font-bold ${c.roas >= 10 ? 'text-[#137333]' : 'text-[#b06000]'}`}>
+                        <span className={`font-mono font-bold ${c.roas >= 10 ? 'text-success' : 'text-warning'}`}>
                           {c.roas.toFixed(1)}x
                         </span>
                       ) : <span className="text-outline">—</span>}
@@ -203,6 +198,7 @@ const CampaignsPage = () => {
             </tbody>
           </table>
         </div>
+        <Pagination current={page} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
     </div>
   );

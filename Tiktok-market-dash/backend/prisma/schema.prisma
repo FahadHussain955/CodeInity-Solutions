@@ -1,0 +1,8 @@
+// Nexora foundation schema — business models added in later phases.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

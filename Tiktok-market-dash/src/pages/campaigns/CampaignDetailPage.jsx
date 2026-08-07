@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { mockCampaigns } from '@/data/mockCampaigns';
 import { mockAds } from '@/data/mockAds';
 import { ROUTES } from '@/constants/routes';
 import StatusBadge from '@/components/ui/StatusBadge';
+import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
 
 const TikTokIcon = ({ size = 20 }) => (
   <svg viewBox="0 0 24 24" style={{ width: size, height: size }} className="fill-current">
@@ -22,6 +24,8 @@ const CampaignDetailPage = () => {
   const campaign = mockCampaigns.find((c) => c.id === id) || mockCampaigns[0];
   const ads = mockAds.filter((a) => a.campaignId === campaign.id);
   const pct = campaign.budget > 0 ? Math.round((campaign.spent / campaign.budget) * 100) : 0;
+  const [adsPage, setAdsPage] = useState(1);
+  const pagedAds = paginateItems(ads, adsPage, PAGE_SIZE);
 
   return (
     <div className="space-y-6 py-2">
@@ -43,17 +47,17 @@ const CampaignDetailPage = () => {
         </div>
         <div className="flex items-center gap-3">
           {campaign.status === 'Active' ? (
-            <button className="flex items-center gap-2 bg-[#fef3c7] text-[#b06000] border border-[#fde68a] px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-[#fde68a] transition-colors">
+            <button className="toolbar-control flex items-center gap-2 bg-warning-bg text-warning border border-warning-border px-4 rounded-lg text-body-sm font-medium hover:bg-warning-border transition-colors">
               <span className="material-symbols-outlined text-[18px]">pause</span>
               Pause
             </button>
           ) : (
-            <button className="flex items-center gap-2 bg-[#e6f4ea] text-[#137333] border border-[#ceead6] px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-[#ceead6] transition-colors">
+            <button className="toolbar-control flex items-center gap-2 bg-success-bg text-success border border-success-border px-4 rounded-lg text-body-sm font-medium hover:bg-success-border transition-colors">
               <span className="material-symbols-outlined text-[18px]">play_arrow</span>
               Resume
             </button>
           )}
-          <button className="flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
+          <button className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">edit</span>
             Edit Campaign
           </button>
@@ -72,7 +76,7 @@ const CampaignDetailPage = () => {
         ].map(({ label, value, note, highlight }) => (
           <div key={label} className="glass-panel rounded-xl p-4">
             <p className="text-label-caps text-on-surface-variant uppercase mb-1">{label}</p>
-            <p className={`text-headline-md font-bold ${highlight ? 'text-[#137333]' : 'text-on-background'}`}>{value}</p>
+            <p className={`text-headline-md font-bold ${highlight ? 'text-success' : 'text-on-background'}`}>{value}</p>
             <p className="text-label-caps text-outline mt-0.5">{note}</p>
           </div>
         ))}
@@ -91,12 +95,12 @@ const CampaignDetailPage = () => {
           <div className="flex items-end gap-2 h-40">
             {perfData.map((v, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                <span className="text-label-caps text-outline text-[10px]">{v}x</span>
+                <span className="text-label-caps text-chart-label text-[10px]">{v}x</span>
                 <div
                   className="w-full rounded-t-lg bg-gradient-to-t from-primary to-primary/40 hover:from-primary/80 transition-all duration-300"
                   style={{ height: `${Math.max((v / maxPerf) * 100, 4)}%` }}
                 />
-                <span className="text-label-caps text-outline text-[9px]">{days[i]}</span>
+                <span className="text-label-caps text-chart-label text-[9px]">{days[i]}</span>
               </div>
             ))}
           </div>
@@ -109,7 +113,7 @@ const CampaignDetailPage = () => {
             </div>
             <div className="h-3 bg-surface-container-high rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-700 ${pct >= 90 ? 'bg-error' : pct >= 70 ? 'bg-[#b06000]' : 'bg-primary'}`}
+                className={`h-full rounded-full transition-all duration-700 ${pct >= 90 ? 'bg-error' : pct >= 70 ? 'bg-warning' : 'bg-primary'}`}
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>
@@ -174,7 +178,7 @@ const CampaignDetailPage = () => {
                 </tr>
               </thead>
               <tbody className="text-body-sm divide-y divide-outline-variant/10">
-                {ads.map((ad) => (
+                {pagedAds.map((ad) => (
                   <tr key={ad.id} onClick={() => navigate(`/dashboard/ads/${ad.id}`)} className="table-row-hover cursor-pointer transition-all">
                     <td className="py-3 px-5">
                       <div className="flex items-center gap-3">
@@ -193,13 +197,14 @@ const CampaignDetailPage = () => {
                     <td className="py-3 px-5 font-mono text-on-surface-variant">{fmt(ad.impressions)}</td>
                     <td className="py-3 px-5 font-mono text-on-surface">{ad.ctr > 0 ? `${ad.ctr.toFixed(2)}%` : '—'}</td>
                     <td className="py-3 px-5 font-mono text-on-surface">{ad.conversions > 0 ? ad.conversions : '—'}</td>
-                    <td className="py-3 px-5 font-mono font-bold text-[#137333]">{ad.roas > 0 ? `${ad.roas.toFixed(1)}x` : '—'}</td>
+                    <td className="py-3 px-5 font-mono font-bold text-success">{ad.roas > 0 ? `${ad.roas.toFixed(1)}x` : '—'}</td>
                     <td className="py-3 px-5"><StatusBadge status={ad.status} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <Pagination current={adsPage} total={ads.length} pageSize={PAGE_SIZE} onPageChange={setAdsPage} />
         </div>
       )}
     </div>
