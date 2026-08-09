@@ -128,4 +128,18 @@ export const uploadsService = {
       throw new Error(getApiErrorMessage(error, 'Unable to remove avatar.'));
     }
   },
+
+  async uploadImage(file, folder = 'products') {
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const response = await axiosPrivate.post('/uploads/image', form, {
+        params: { folder },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return unwrapApiData(response);
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Unable to upload image.'));
+    }
+  },
 };

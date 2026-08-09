@@ -32,4 +32,16 @@ export const aiController = {
     const data = await aiService.campaignSuggestions(req.user?.id);
     return ApiResponse.success(res, data, 'Campaign suggestions');
   }),
+
+  generateProduct: asyncHandler(async (req, res) => {
+    const body = req.body || {};
+    const data = await aiService.generateProductFromImage(req.user?.id, {
+      file: req.file,
+      imageUrl: body.imageUrl,
+      imageBase64: body.imageBase64,
+      mimeType: body.mimeType || req.file?.mimetype,
+      hint: body.hint,
+    });
+    return ApiResponse.success(res, data, 'Product AI draft generated');
+  }),
 };

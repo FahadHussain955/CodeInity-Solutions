@@ -152,6 +152,7 @@ Multi-channel store sync (Shopify, TikTok Shop, WooCommerce, Amazon, Daraz), dee
 | List / search / filter / CRUD | Live |
 | Categories, SKU, price, costPrice, stock, status | Live |
 | Images (upload / Cloudinary or local) | Live |
+| **AI product draft from image** | Live (`POST /ai/products/generate` → Gemini multimodal → editable form; save is separate) |
 | Product detail + performance KPIs | Live |
 | Rankings (units, revenue, profit, margin, worst) | Live |
 | Batch performance endpoint | Live |
@@ -214,9 +215,12 @@ Multi-channel store sync (Shopify, TikTok Shop, WooCommerce, Amazon, Daraz), dee
 | Feature | Status |
 |---------|--------|
 | `GET/POST` insights, refresh, recommendations, forecasts, campaign suggestions | Live |
-| Gemini provider | Optional (`GEMINI_API_KEY`) |
-| Heuristic fallback | Live |
-| Embedded in dashboard (no standalone AI Tools page) | By design |
+| **`POST /ai/products/generate`** (image → structured listing draft) | Live |
+| Gemini provider | Optional (`GEMINI_API_KEY`); multimodal for product images |
+| Heuristic fallback | Live for **insights** only (not for product-from-image) |
+| Embedded in dashboard + Add Product | By design |
+
+**Product AI env:** `GEMINI_API_KEY` (required for product-from-image), `GEMINI_MODEL` (optional, default `gemini-2.0-flash`). Frontend never calls Gemini.
 
 ### Store integrations
 

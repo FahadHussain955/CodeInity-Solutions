@@ -1,12 +1,87 @@
 import { prisma } from '../../lib/prisma.js';
 import { env } from '../../config/env.js';
 import { formatMoney, toNumber } from '../../utils/queryHelpers.js';
+import { ApiError } from '../../utils/ApiError.js';
 import { formatAiInsights } from './ai.formatter.js';
 import { geminiProvider } from './providers/geminiProvider.js';
 import { heuristicProvider } from './providers/heuristicProvider.js';
+import {
+  buildDescriptionWithExtras,
+  normalizeProductAiPayload,
+  suggestSkuFromTitle,
+} from './productAi.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_CACHE_KEY = 'insights:default';
+
+const MIME_FROM_EXT = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+
+const assertInsideUploads = (filePath) => {
+  const root = path.resolve(process.cwd(), env.upload.dir);
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+    throw ApiError.badRequest('Invalid image path.');
+  }
+  return resolved;
+};
+
+const loadImageForAi = async ({ file, imageUrl, imageBase64, mimeType } = {}) => {
+  if (file?.buffer) {
+    return {
+      buffer: file.buffer,
+      mimeType: String(file.mimetype || mimeType || 'image/jpeg').toLowerCase(),
+    };
+  }
+
+  if (imageBase64) {
+    const cleaned = String(imageBase64).replace(/^data:[^;]+;base64,/, '');
+    return {
+      buffer: Buffer.from(cleaned, 'base64'),
+      mimeType: String(mimeType || 'image/jpeg').toLowerCase(),
+    };
+  }
+
+  if (!imageUrl) {
+    throw ApiError.badRequest('Upload an image or provide imageUrl / imageBase64.');
+  }
+
+  const url = String(imageUrl).trim();
+
+  if (url.startsWith('/uploads/')) {
+    const relative = url.replace(/^\/uploads\//, '').replace(/\\/g, '/');
+    const filePath = assertInsideUploads(path.resolve(process.cwd(), env.upload.dir, relative));
+    try {
+      const buffer = await fs.readFile(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      return { buffer, mimeType: MIME_FROM_EXT[ext] || 'image/jpeg' };
+    } catch {
+      throw ApiError.badRequest('Could not read uploaded image. Re-upload and try again.');
+    }
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw ApiError.badRequest('Could not download image for AI analysis.');
+    }
+    const contentType = String(response.headers.get('content-type') || mimeType || 'image/jpeg')
+      .split(';')[0]
+      .trim()
+      .toLowerCase();
+    const arrayBuffer = await response.arrayBuffer();
+    return { buffer: Buffer.from(arrayBuffer), mimeType: contentType || 'image/jpeg' };
+  }
+
+  throw ApiError.badRequest('Unsupported imageUrl. Use an uploaded /uploads path or https URL.');
+};
 
 const gatherBusinessContext = async (userId) => {
   const ownershipProducts = userId
@@ -410,6 +485,89 @@ export const aiService = {
       provider: insights.provider,
       cached: insights.cached,
       generatedAt: insights.generatedAt,
+    };
+  },
+
+  /**
+   * Generate structured product listing fields from an image (Gemini multimodal).
+   * Authenticated + tenant-scoped by requiring the caller's JWT (no cross-user image DB yet).
+   */
+  async generateProductFromImage(userId, payload = {}) {
+    if (!userId) throw ApiError.unauthorized('Authentication required.');
+
+    if (!env.gemini?.apiKey) {
+      throw ApiError.badRequest(
+        'AI product generation is not configured. Add GEMINI_API_KEY to the backend environment.'
+      );
+    }
+
+    const { buffer, mimeType } = await loadImageForAi(payload);
+    const maxBytes = (env.upload?.maxFileSizeMb || 5) * 1024 * 1024;
+    if (buffer.length > maxBytes) {
+      throw ApiError.badRequest(`Image must be ${env.upload.maxFileSizeMb || 5}MB or smaller.`);
+    }
+
+    const allowed = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+    if (!allowed.has(mimeType)) {
+      throw ApiError.badRequest('Only JPEG, PNG, WebP, or GIF images are supported.');
+    }
+
+    let raw;
+    try {
+      raw = await geminiProvider.generateProductFromImage({
+        mimeType,
+        base64: buffer.toString('base64'),
+        hint: payload.hint,
+      });
+    } catch (err) {
+      const detail = String(err?.message || '');
+      if (!env.isProd) {
+        console.warn('[ai] product image generation failed:', detail.slice(0, 400));
+      }
+      if (detail.includes('Gemini API error 400')) {
+        throw ApiError.badRequest(
+          'AI could not process this image. Try a clearer product photo (JPEG/PNG).'
+        );
+      }
+      if (detail.includes('Gemini API error 401') || detail.includes('Gemini API error 403')) {
+        throw ApiError.badRequest(
+          'Gemini API key is missing or invalid. Set a valid GEMINI_API_KEY in backend/.env.'
+        );
+      }
+      if (detail.includes('Gemini API error 429')) {
+        throw ApiError.badRequest('AI rate limit reached. Please wait and retry.');
+      }
+      throw ApiError.badRequest(
+        detail.includes('Gemini API error')
+          ? 'AI provider failed to analyze the image. Please retry.'
+          : detail || 'AI product generation failed.'
+      );
+    }
+
+    if (!raw) {
+      throw ApiError.badRequest(
+        'AI product generation is not configured. Add GEMINI_API_KEY to the backend environment.'
+      );
+    }
+
+    let product;
+    try {
+      product = normalizeProductAiPayload(raw);
+    } catch {
+      throw ApiError.badRequest('AI returned an invalid product payload. Please retry.');
+    }
+
+    const description = buildDescriptionWithExtras(product);
+    const suggestedSku = suggestSkuFromTitle(product.title);
+
+    return {
+      product: {
+        ...product,
+        description,
+        suggestedSku,
+      },
+      provider: raw.provider || 'gemini',
+      generatedAt: new Date().toISOString(),
     };
   },
 };

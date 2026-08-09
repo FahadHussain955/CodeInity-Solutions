@@ -75,4 +75,35 @@ export const aiService = {
       });
     }
   },
+
+  /**
+   * Generate product draft fields from an image.
+   * Prefers multipart file; falls back to imageUrl JSON.
+   */
+  async generateProductFromImage({ file, imageUrl, hint } = {}) {
+    try {
+      let response;
+      if (file) {
+        const form = new FormData();
+        form.append('image', file);
+        if (hint) form.append('hint', hint);
+        if (imageUrl) form.append('imageUrl', imageUrl);
+        response = await axiosPrivate.post('/ai/products/generate', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 120000,
+        });
+      } else {
+        response = await axiosPrivate.post(
+          '/ai/products/generate',
+          { imageUrl, hint },
+          { timeout: 120000 }
+        );
+      }
+      return unwrap(response);
+    } catch (error) {
+      throw new AiApiError(getErrorMessage(error, 'Unable to generate product details.'), {
+        status: error?.response?.status || 400,
+      });
+    }
+  },
 };
