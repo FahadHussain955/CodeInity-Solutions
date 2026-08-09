@@ -18,10 +18,26 @@ const toInt = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const DEV_JWT_FALLBACK = 'dev_jwt_secret_change_me_min_32_chars';
+const DEV_REFRESH_FALLBACK = 'dev_refresh_secret_change_me_32chars';
+const isProd = (process.env.NODE_ENV || 'development') === 'production';
+
 const jwtSecret =
   process.env.JWT_SECRET ||
   process.env.JWT_ACCESS_SECRET ||
-  'dev_jwt_secret_change_me_min_32_chars';
+  (isProd ? undefined : DEV_JWT_FALLBACK);
+
+const jwtRefreshSecret =
+  process.env.JWT_REFRESH_SECRET || (isProd ? undefined : DEV_REFRESH_FALLBACK);
+
+if (isProd) {
+  if (!jwtSecret || jwtSecret === DEV_JWT_FALLBACK || jwtSecret.length < 32) {
+    throw new Error('Production requires JWT_SECRET (min 32 characters).');
+  }
+  if (!jwtRefreshSecret || jwtRefreshSecret === DEV_REFRESH_FALLBACK || jwtRefreshSecret.length < 32) {
+    throw new Error('Production requires JWT_REFRESH_SECRET (min 32 characters).');
+  }
+}
 
 const jwtExpiresIn =
   process.env.JWT_EXPIRES_IN ||
@@ -30,7 +46,7 @@ const jwtExpiresIn =
 
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  isProd: (process.env.NODE_ENV || 'development') === 'production',
+  isProd,
   port: toInt(process.env.PORT, 5000),
   apiPrefix: process.env.API_PREFIX || '/api/v1',
   databaseUrl: required(
@@ -41,7 +57,7 @@ export const env = {
   corsOrigin: process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:5173',
   jwt: {
     accessSecret: jwtSecret,
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret_change_me_32chars',
+    refreshSecret: jwtRefreshSecret,
     accessExpiresIn: jwtExpiresIn,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
@@ -65,5 +81,22 @@ export const env = {
   upload: {
     dir: process.env.UPLOAD_DIR || 'uploads',
     maxFileSizeMb: toInt(process.env.UPLOAD_MAX_FILE_SIZE_MB, 5),
+  },
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+    apiKey: process.env.CLOUDINARY_API_KEY || '',
+    apiSecret: process.env.CLOUDINARY_API_SECRET || '',
+  },
+  rateLimit: {
+    windowMs: toInt(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+    max: toInt(process.env.RATE_LIMIT_MAX, 300),
+    authMax: toInt(process.env.RATE_LIMIT_AUTH_MAX, 40),
+  },
+  jobsEnabled:
+    String(process.env.JOBS_ENABLED ?? 'true').toLowerCase() !== 'false' &&
+    String(process.env.JOBS_ENABLED ?? 'true') !== '0',
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
   },
 };

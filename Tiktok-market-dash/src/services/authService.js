@@ -111,6 +111,56 @@ export const authService = {
     return { success: true };
   },
 
+  async updateMe(payload) {
+    try {
+      const response = await axiosPrivate.patch('/auth/me', payload);
+      const user = response?.data?.data?.user;
+      if (!user) throw new AuthApiError('Unexpected profile response.', { status: 500 });
+      return user;
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Unable to update profile.'), {
+        code: error?.response?.data?.code || 'UPDATE_FAILED',
+        status: error?.response?.status || 400,
+        errors: error?.response?.data?.errors || [],
+      });
+    }
+  },
+
+  async changePassword({ currentPassword, newPassword }) {
+    try {
+      const response = await axiosPrivate.post('/auth/change-password', {
+        currentPassword,
+        newPassword,
+      });
+      return response?.data?.data;
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Unable to change password.'), {
+        code: error?.response?.data?.code || 'PASSWORD_FAILED',
+        status: error?.response?.status || 400,
+      });
+    }
+  },
+
+  async logoutAll() {
+    try {
+      await axiosPrivate.post('/auth/logout-all');
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Unable to logout all sessions.'), {
+        status: error?.response?.status || 400,
+      });
+    }
+  },
+
+  async deleteAccount() {
+    try {
+      await axiosPrivate.delete('/auth/me');
+    } catch (error) {
+      throw new AuthApiError(getErrorMessage(error, 'Unable to delete account.'), {
+        status: error?.response?.status || 400,
+      });
+    }
+  },
+
   getGoogleAuthUrl(intent = 'login') {
     const base = API_BASE_URL.replace(/\/$/, '');
     const mode = intent === 'register' ? 'register' : 'login';

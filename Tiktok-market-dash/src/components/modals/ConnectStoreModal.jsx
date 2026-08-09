@@ -3,7 +3,7 @@ import { useStoreConnection } from '@/contexts/StoreConnectionContext';
 
 const ConnectStoreModal = () => {
   const { isModalOpen, activePlatform, closeConnectModal, connectStore } = useStoreConnection();
-  
+
   const [storeUrl, setStoreUrl] = useState('');
   const [storeName, setStoreName] = useState('');
   const [apiToken, setApiToken] = useState('');
@@ -31,26 +31,23 @@ const ConnectStoreModal = () => {
     }
 
     setStatus('loading');
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Simulate random error sometimes, or just succeed
-      if (storeUrl.includes('error')) {
-        setStatus('error');
-        setErrorMsg('Failed to connect to the store. Please check your credentials.');
-      } else {
-        setStatus('success');
-        connectStore({
-          platform: activePlatform,
-          name: storeName,
-          url: storeUrl,
-          connectedAt: new Date().toISOString(),
-        });
-        setTimeout(() => {
-          closeConnectModal();
-        }, 1500);
-      }
-    }, 1200);
+    setErrorMsg('');
+
+    try {
+      await connectStore({
+        platform: activePlatform || 'TikTok Shop',
+        name: storeName,
+        url: storeUrl,
+        apiToken: apiToken || undefined,
+      });
+      setStatus('success');
+      setTimeout(() => {
+        closeConnectModal();
+      }, 1500);
+    } catch (error) {
+      setStatus('error');
+      setErrorMsg(error.message || 'Failed to connect to the store. Please check your credentials.');
+    }
   };
 
   const inputClass = 'w-full bg-surface border border-outline-variant/50 rounded-lg py-2.5 px-4 text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm';
@@ -58,11 +55,11 @@ const ConnectStoreModal = () => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-on-surface/20 backdrop-blur-sm" 
+      <div
+        className="absolute inset-0 bg-on-surface/20 backdrop-blur-sm"
         onClick={() => status !== 'loading' && closeConnectModal()}
       />
-      
+
       {/* Modal */}
       <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-xl overflow-hidden border border-outline-variant/30 flex flex-col">
         {/* Header */}
@@ -73,8 +70,8 @@ const ConnectStoreModal = () => {
             {activePlatform === 'WooCommerce' && <span className="text-[24px]">🛒</span>}
           </div>
           <div>
-            <h3 className="text-headline-md text-on-background leading-tight">Connect {activePlatform}</h3>
-            <p className="text-body-sm text-on-surface-variant mt-0.5">Enter your store details to sync.</p>
+            <h3 className="text-headline-md text-on-background leading-tight">Connect {activePlatform || 'TikTok Shop'}</h3>
+            <p className="text-body-sm text-on-surface-variant mt-0.5">Link your TikTok Marketplace store to sync.</p>
           </div>
         </div>
 
@@ -86,40 +83,40 @@ const ConnectStoreModal = () => {
                 <span className="material-symbols-outlined text-[32px]">check_circle</span>
               </div>
               <h4 className="text-body-lg font-semibold text-on-surface">Connection Successful!</h4>
-              <p className="text-body-sm text-on-surface-variant mt-1">Your store is now connected and syncing.</p>
+              <p className="text-body-sm text-on-surface-variant mt-1">Your TikTok Shop is now connected and syncing.</p>
             </div>
           ) : (
             <form onSubmit={handleConnect} className="space-y-4">
               <div>
                 <label className="block text-label-caps text-on-surface-variant uppercase mb-1.5">Store URL</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={storeUrl}
                   onChange={(e) => setStoreUrl(e.target.value)}
-                  placeholder="e.g. mystore.myshopify.com" 
-                  className={inputClass} 
+                  placeholder="e.g. yourshop.tiktok.com"
+                  className={inputClass}
                   disabled={status === 'loading'}
                 />
               </div>
               <div>
                 <label className="block text-label-caps text-on-surface-variant uppercase mb-1.5">Store Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
-                  placeholder="e.g. My Awesome Store" 
-                  className={inputClass} 
+                  placeholder="e.g. My TikTok Shop"
+                  className={inputClass}
                   disabled={status === 'loading'}
                 />
               </div>
               <div>
-                <label className="block text-label-caps text-on-surface-variant uppercase mb-1.5">API Token / Credentials (Optional)</label>
-                <input 
-                  type="password" 
+                <label className="block text-label-caps text-on-surface-variant uppercase mb-1.5">TikTok Shop API Token (Optional)</label>
+                <input
+                  type="password"
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
-                  placeholder="••••••••••••••••" 
-                  className={inputClass} 
+                  placeholder="••••••••••••••••"
+                  className={inputClass}
                   disabled={status === 'loading'}
                 />
               </div>
@@ -133,16 +130,16 @@ const ConnectStoreModal = () => {
 
               {/* Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant/10 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={closeConnectModal}
                   disabled={status === 'loading'}
                   className="px-5 py-2.5 border border-outline-variant/50 rounded-lg text-body-sm text-on-surface hover:bg-surface-variant/30 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={status === 'loading'}
                   className="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                 >

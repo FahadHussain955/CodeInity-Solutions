@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockDashboardStats, mockRecentOrders, mockLowStock } from '@/data/mockDashboard';
+import { useDispatch, useSelector } from 'react-redux';
 import { ROUTES } from '@/constants/routes';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useStoreConnection } from '@/contexts/StoreConnectionContext';
 import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
+import {
+  clearDashboardError,
+  fetchDashboardOverview,
+  setDashboardRange,
+} from '@/features/dashboard/dashboardSlice';
 
 const PRESETS = [
   { key: 'today', label: 'Today' },
@@ -83,10 +88,27 @@ const StatCard = ({ label, value, change, positive, icon, onClick }) => (
   </button>
 );
 
+const formatChartLabel = (value) => {
+  const n = Number(value) || 0;
+  if (n >= 1) return `$${n}K`;
+  if (n > 0) return `$${Math.round(n * 1000)}`;
+  return '$0';
+};
+
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { storeDetails } = useStoreConnection();
   const filterRef = useRef(null);
+  const {
+    kpis,
+    revenue,
+    recentOrders: liveOrders,
+    lowStockItems,
+    storeHealth,
+    status,
+    error,
+  } = useSelector((s) => s.dashboard);
 
   const storeJoinedDate = useMemo(() => {
     if (storeDetails?.connectedAt) return startOfDay(new Date(storeDetails.connectedAt));
@@ -102,6 +124,23 @@ const DashboardPage = () => {
   const [draftStart, setDraftStart] = useState(toInputDate(EARLIEST_STORE_DATA));
   const [draftEnd, setDraftEnd] = useState(toInputDate(new Date()));
   const [ordersPage, setOrdersPage] = useState(1);
+
+  useEffect(() => {
+    const payload = {
+      preset: preset === 'custom' ? 'custom' : preset,
+      start: range.start,
+      end: range.end,
+      limit: 20,
+    };
+    dispatch(setDashboardRange(payload));
+    dispatch(fetchDashboardOverview(payload));
+  }, [dispatch, preset, range]);
+
+  useEffect(() => {
+    if (!error) return undefined;
+    const t = window.setTimeout(() => dispatch(clearDashboardError()), 4000);
+    return () => window.clearTimeout(t);
+  }, [error, dispatch]);
 
   useEffect(() => {
     const onPointerDown = (e) => {
@@ -146,55 +185,85 @@ const DashboardPage = () => {
     setOpen(false);
   };
 
-  const days = dayCountInclusive(range.start, range.end);
-  const scale = days / 30;
-
   const stats = useMemo(() => {
-    const fmtMoney = (n) => `$${Math.round(n).toLocaleString()}`;
-    const fmtNum = (n) => Math.round(n).toLocaleString();
+    const cards = kpis?.cards;
+    if (cards?.length) {
+      return cards.map((card) => {
+        if (card.id === 'revenue' && kpis?.roas != null) {
+          return {
+            ...card,
+            change: `ROAS ${kpis.roas}x · ${card.change}`,
+            positive: true,
+          };
+        }
+        if (card.id === 'orders' && kpis?.conversionRateFormatted) {
+          return {
+            ...card,
+            change: `Conv ${kpis.conversionRateFormatted} · ${card.change}`,
+          };
+        }
+        if (card.id === 'products' && storeHealth) {
+          return {
+            ...card,
+            change: [
+              kpis?.inventoryValueFormatted ? `Value ${kpis.inventoryValueFormatted}` : card.change,
+              storeHealth.lowStockCount != null ? `${storeHealth.lowStockCount} low` : null,
+              storeHealth.outOfStockCount != null ? `${storeHealth.outOfStockCount} out` : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            positive: true,
+          };
+        }
+        if (card.id === 'customers' && kpis) {
+          return {
+            ...card,
+            change: [
+              card.change,
+              kpis.averageOrderValueFormatted ? `AOV ${kpis.averageOrderValueFormatted}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          };
+        }
+        return card;
+      });
+    }
 
-    return mockDashboardStats.map((stat) => {
-      if (stat.id === 'revenue') {
-        const value = 84320 * scale;
-        return { ...stat, value: fmtMoney(value), change: scale >= 1 ? '+12.5%' : '+4.2%' };
-      }
-      if (stat.id === 'orders') {
-        return { ...stat, value: fmtNum(1284 * scale), change: scale >= 1 ? '+8.2%' : '+3.1%' };
-      }
-      if (stat.id === 'customers') {
-        return { ...stat, value: fmtNum(Math.max(120, 3942 * Math.min(scale, 1.2))), change: scale >= 1 ? '+5.1%' : '+1.8%' };
-      }
-      return { ...stat, change: days <= 1 ? '+0' : '+3' };
-    });
-  }, [scale, days]);
+    return [
+      { id: 'revenue', label: 'Total Revenue', value: '…', change: 'Loading', positive: true, icon: 'payments', route: ROUTES.ORDERS },
+      { id: 'orders', label: 'Total Orders', value: '…', change: 'Loading', positive: true, icon: 'shopping_cart', route: ROUTES.ORDERS },
+      { id: 'products', label: 'Active Products', value: '…', change: 'Loading', positive: true, icon: 'inventory_2', route: ROUTES.PRODUCTS },
+      { id: 'customers', label: 'Total Customers', value: '…', change: 'Loading', positive: true, icon: 'group', route: ROUTES.CUSTOMERS },
+    ];
+  }, [kpis, storeHealth]);
 
   const chartBars = useMemo(() => {
-    const count = Math.min(Math.max(days, 1), 14);
-    const labels = [];
-    const values = [];
-    for (let i = 0; i < count; i++) {
-      const d = new Date(range.start);
-      d.setDate(d.getDate() + Math.floor((i * (days - 1)) / Math.max(count - 1, 1)));
-      labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-      const wave = 0.55 + 0.45 * Math.sin((i / count) * Math.PI * 1.6 + days * 0.1);
-      values.push(Math.round((42 + (84 - 42) * wave) * Math.min(scale * 1.15, 1.4)));
+    if (revenue?.labels?.length && revenue?.values?.length) {
+      return {
+        labels: revenue.labels,
+        values: revenue.values,
+        max: revenue.max || Math.max(...revenue.values, 1),
+      };
     }
-    return { labels, values, max: Math.max(...values, 1) };
-  }, [range, days, scale]);
+    const days = dayCountInclusive(range.start, range.end);
+    const count = Math.min(Math.max(days, 1), 14);
+    return {
+      labels: Array.from({ length: count }, (_, i) => {
+        const d = new Date(range.start);
+        d.setDate(d.getDate() + i);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }),
+      values: Array.from({ length: count }, () => 0),
+      max: 1,
+    };
+  }, [revenue, range]);
 
-  const recentOrders = useMemo(() => {
-    const start = startOfDay(range.start).getTime();
-    const end = endOfDay(range.end).getTime();
-    const filtered = mockRecentOrders.filter((order) => {
-      const t = new Date(order.date).getTime();
-      return t >= start && t <= end;
-    });
-    return filtered.length > 0 ? filtered : mockRecentOrders;
-  }, [range]);
+  const recentOrders = liveOrders || [];
 
   useEffect(() => {
     setOrdersPage(1);
-  }, [range]);
+  }, [range, recentOrders.length]);
 
   const pagedOrders = paginateItems(recentOrders, ordersPage, PAGE_SIZE);
 
@@ -204,6 +273,8 @@ const DashboardPage = () => {
     if (preset === 'last14') return 'Last 14 days performance trend';
     return `${formatShortDate(range.start)} – ${formatShortDate(range.end)}`;
   }, [preset, range]);
+
+  const outOfStockCount = storeHealth?.outOfStockCount;
 
   return (
     <div className="space-y-6 py-2">
@@ -298,6 +369,12 @@ const DashboardPage = () => {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">
+          {error}
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {stats.map((stat) => (
@@ -329,18 +406,22 @@ const DashboardPage = () => {
 
           {/* Chart Area */}
           <div className="h-44 rounded-lg flex items-end gap-2 px-2 bg-chart-area border border-outline-variant/20">
-            {chartBars.values.map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end pb-1 min-w-0">
-                <span className="text-label-caps text-chart-label text-[9px]">${h}K</span>
-                <div
-                  className="w-full rounded-t-lg bg-gradient-to-t from-primary to-primary/50 transition-all duration-500 hover:from-primary/80"
-                  style={{ height: `${Math.max((h / chartBars.max) * 90, 4)}%` }}
-                />
-                <span className="text-label-caps text-chart-label text-[9px] truncate w-full text-center">
-                  {chartBars.labels[i]}
-                </span>
-              </div>
-            ))}
+            {status === 'loading' && !revenue ? (
+              <p className="w-full text-center text-body-sm text-on-surface-variant self-center">Loading chart…</p>
+            ) : (
+              chartBars.values.map((h, i) => (
+                <div key={`${chartBars.labels[i]}-${i}`} className="flex-1 flex flex-col items-center gap-1 h-full justify-end pb-1 min-w-0">
+                  <span className="text-label-caps text-chart-label text-[9px]">{formatChartLabel(h)}</span>
+                  <div
+                    className="w-full rounded-t-lg bg-gradient-to-t from-primary to-primary/50 transition-all duration-500 hover:from-primary/80"
+                    style={{ height: `${Math.max((h / chartBars.max) * 90, 4)}%` }}
+                  />
+                  <span className="text-label-caps text-chart-label text-[9px] truncate w-full text-center">
+                    {chartBars.labels[i]}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
         </div>
@@ -348,7 +429,17 @@ const DashboardPage = () => {
         {/* Low Stock Alert */}
         <div className="glass-panel rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-headline-md text-headline-md text-on-background">Low Stock</h3>
+            <div>
+              <h3 className="font-headline-md text-headline-md text-on-background">Low Stock</h3>
+              {outOfStockCount != null && (
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                  {outOfStockCount} out of stock
+                  {storeHealth?.inventoryHealth != null
+                    ? ` · Health ${storeHealth.inventoryHealth}%`
+                    : ''}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => navigate(ROUTES.INVENTORY)}
               className="font-body-sm text-body-sm text-primary hover:text-primary-fixed-variant transition-colors"
@@ -357,7 +448,7 @@ const DashboardPage = () => {
             </button>
           </div>
           <div className="space-y-3">
-            {mockLowStock.map((item) => (
+            {(lowStockItems?.length ? lowStockItems : []).map((item) => (
               <div
                 key={item.sku}
                 onClick={() => navigate(ROUTES.INVENTORY)}
@@ -373,6 +464,9 @@ const DashboardPage = () => {
                 </div>
               </div>
             ))}
+            {!lowStockItems?.length && (
+              <p className="text-body-sm text-on-surface-variant py-2">No low-stock items.</p>
+            )}
           </div>
           <button
             onClick={() => navigate(ROUTES.INVENTORY)}
@@ -407,10 +501,20 @@ const DashboardPage = () => {
               </tr>
             </thead>
             <tbody className="font-body-sm text-body-sm divide-y divide-outline-variant/10">
+              {status === 'loading' && recentOrders.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-on-surface-variant">Loading orders…</td>
+                </tr>
+              )}
+              {status !== 'loading' && recentOrders.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-on-surface-variant">No orders in this range.</td>
+                </tr>
+              )}
               {pagedOrders.map((order) => (
                 <tr
-                  key={order.id}
-                  onClick={() => navigate(`/dashboard/orders/${order.id}`)}
+                  key={order.orderId || order.id}
+                  onClick={() => navigate(`/dashboard/orders/${order.orderId || order.id}`)}
                   className="table-row-hover transition-all duration-200 cursor-pointer"
                 >
                   <td className="py-3 px-6 font-mono text-primary font-medium">{order.id}</td>

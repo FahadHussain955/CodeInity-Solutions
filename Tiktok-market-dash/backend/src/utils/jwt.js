@@ -52,6 +52,7 @@ export const toPublicUser = (user) => ({
   name: user.fullName,
   fullName: user.fullName,
   email: user.email,
+  phone: user.phone ?? null,
   avatar: user.avatar,
   provider: user.provider,
   role: user.role,

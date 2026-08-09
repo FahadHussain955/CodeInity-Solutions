@@ -1,40 +1,46 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockProducts, productCounts } from '@/data/mockProducts';
+import { useDispatch, useSelector } from 'react-redux';
 import { ROUTES } from '@/constants/routes';
 import StatusBadge from '@/components/ui/StatusBadge';
-import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
+import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
 import FilterTabs from '@/components/ui/FilterTabs';
-
-const TABS = [
-  { key: 'all', label: 'All', count: productCounts.all },
-  { key: 'active', label: 'Active', count: productCounts.active },
-  { key: 'draft', label: 'Draft', count: productCounts.draft },
-  { key: 'archived', label: 'Archived', count: productCounts.archived },
-];
+import {
+  fetchProductsList,
+  setProductFilters,
+  setProductPage,
+} from '@/features/products/productsSlice';
 
 const ProductsPage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('all');
-  const [search, setSearch] = useState('');
+  const dispatch = useDispatch();
+  const {
+    items,
+    counts,
+    filters,
+    pagination,
+    status,
+    error,
+  } = useSelector((state) => state.products);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const tabs = useMemo(
+    () => [
+      { key: 'all', label: 'All', count: counts.all },
+      { key: 'active', label: 'Active', count: counts.active },
+      { key: 'draft', label: 'Draft', count: counts.draft },
+      { key: 'archived', label: 'Archived', count: counts.archived },
+    ],
+    [counts]
+  );
+
+  useEffect(() => {
+    dispatch(fetchProductsList());
+  }, [dispatch, filters.search, filters.status, filters.range, pagination.page]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
-
-  const filtered = useMemo(() => mockProducts.filter((p) => {
-    const matchTab = activeTab === 'all' || p.status.toLowerCase() === activeTab;
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
-  }), [activeTab, search]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, search]);
-
-  const rows = paginateItems(filtered, currentPage, PAGE_SIZE);
 
   return (
     <div className="space-y-6 py-2">
@@ -48,11 +54,12 @@ const ProductsPage = () => {
           <h2 className="font-display-lg text-display-lg-mobile md:text-display-lg text-on-background">Products</h2>
         </div>
         <div className="toolbar-row">
-          <button className="toolbar-control flex items-center justify-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 font-body-sm text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
+          <button type="button" className="toolbar-control flex items-center justify-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 font-body-sm text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export
           </button>
           <button
+            type="button"
             onClick={() => navigate(ROUTES.PRODUCT_NEW)}
             className="toolbar-control flex items-center justify-center gap-2 bg-primary text-on-primary px-4 font-body-sm text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
           >
@@ -62,20 +69,30 @@ const ProductsPage = () => {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">
+          {error}
+        </div>
+      )}
+
       <div className="table-toolbar">
-        <FilterTabs tabs={TABS} value={activeTab} onChange={setActiveTab} />
+        <FilterTabs
+          tabs={tabs}
+          value={filters.status}
+          onChange={(status) => dispatch(setProductFilters({ status }))}
+        />
         <div className="toolbar-row w-full lg:w-auto">
           <div className="relative w-full lg:w-64 group">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary text-[18px] transition-colors">search</span>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={(e) => dispatch(setProductFilters({ search: e.target.value }))}
               className="toolbar-control w-full bg-surface border border-outline-variant/50 pl-9 pr-3 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
               placeholder="Filter products..."
               type="text"
             />
           </div>
-          <button className="toolbar-control flex items-center justify-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-3 font-body-sm text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm shrink-0">
+          <button type="button" className="toolbar-control flex items-center justify-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-3 font-body-sm text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm shrink-0">
             <span className="material-symbols-outlined text-[18px]">filter_list</span>
             <span className="hidden sm:inline">Filters</span>
           </button>
@@ -91,15 +108,15 @@ const ProductsPage = () => {
                   <input
                     type="checkbox"
                     className="rounded border-outline-variant/50 text-primary focus:ring-primary/20 bg-transparent"
-                    onChange={(e) => setSelectedIds(e.target.checked ? filtered.map((p) => p.id) : [])}
-                    checked={selectedIds.length === filtered.length && filtered.length > 0}
+                    onChange={(e) => setSelectedIds(e.target.checked ? items.map((p) => p.id) : [])}
+                    checked={selectedIds.length === items.length && items.length > 0}
                   />
                 </th>
-                {['Product', 'SKU', 'Category', 'Stock', 'Price', 'Status', ''].map((h, i) => (
+                {['Product', 'SKU', 'Category', 'Stock', 'Price', 'Sold', 'Profit', 'Status', ''].map((h, i) => (
                   <th
                     key={i}
                     className={`py-2 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold ${
-                      h === 'Stock' || h === 'Price' ? 'text-right' : h === 'Status' ? 'text-center' : ''
+                      h === 'Stock' || h === 'Price' || h === 'Sold' || h === 'Profit' ? 'text-right' : h === 'Status' ? 'text-center' : ''
                     }`}
                   >
                     {h}
@@ -108,7 +125,17 @@ const ProductsPage = () => {
               </tr>
             </thead>
             <tbody className="font-body-sm text-body-sm divide-y divide-outline-variant/10">
-              {rows.map((product) => (
+              {status === 'loading' && !items.length && (
+                <tr>
+                  <td colSpan={9} className="py-10 text-center text-on-surface-variant">Loading products…</td>
+                </tr>
+              )}
+              {!items.length && status !== 'loading' && (
+                <tr>
+                  <td colSpan={9} className="py-10 text-center text-on-surface-variant">No products found.</td>
+                </tr>
+              )}
+              {items.map((product) => (
                 <tr
                   key={product.id}
                   className={`table-row-hover transition-all duration-200 cursor-pointer ${product.aiOptimized ? 'ai-glow bg-surface/30' : ''}`}
@@ -138,14 +165,14 @@ const ProductsPage = () => {
                             <span className="material-symbols-outlined text-[14px] text-primary shrink-0" title="AI Optimized Listing">auto_awesome</span>
                           )}
                         </div>
-                        <span className="text-outline text-[11px]">Updated {product.updatedAt}</span>
+                        <span className="text-outline text-[11px]">Updated {product.updatedLabel || '—'}</span>
                       </div>
                     </div>
                   </td>
                   <td className="py-1.5 px-4 font-mono text-on-surface-variant">{product.sku}</td>
                   <td className="py-1.5 px-4 text-on-surface-variant">{product.category}</td>
                   <td className="py-1.5 px-4 text-right font-mono text-on-surface">
-                    {product.stock !== null ? (
+                    {product.stock !== null && product.stock !== undefined ? (
                       <span className="inline-flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${product.stock < 20 ? 'bg-error' : 'bg-secondary'}`} />
                         {product.stock}
@@ -154,10 +181,23 @@ const ProductsPage = () => {
                       <span className="text-outline">-</span>
                     )}
                   </td>
-                  <td className="py-1.5 px-4 text-right font-mono font-medium text-on-surface">${product.price.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-medium text-on-surface">
+                    {product.priceFormatted || `$${Number(product.price || 0).toFixed(2)}`}
+                  </td>
+                  <td className="py-1.5 px-4 text-right font-mono text-on-surface">
+                    {product.performance?.unitsSold ?? 0}
+                  </td>
+                  <td className="py-1.5 px-4 text-right font-mono text-on-surface">
+                    <div className="flex flex-col items-end">
+                      <span>{product.performance?.grossProfitFormatted || '$0.00'}</span>
+                      <span className="text-[11px] text-on-surface-variant">
+                        {product.performance?.profitMarginLabel || '—'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="py-1.5 px-4 text-center"><StatusBadge status={product.status} /></td>
                   <td className="py-1.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                    <button className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50">
+                    <button type="button" className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50">
                       <span className="material-symbols-outlined text-[18px]">more_vert</span>
                     </button>
                   </td>
@@ -166,7 +206,12 @@ const ProductsPage = () => {
             </tbody>
           </table>
         </div>
-        <Pagination current={currentPage} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setCurrentPage} />
+        <Pagination
+          current={pagination.page}
+          total={pagination.total}
+          pageSize={pagination.limit || PAGE_SIZE}
+          onPageChange={(page) => dispatch(setProductPage(page))}
+        />
       </div>
     </div>
   );

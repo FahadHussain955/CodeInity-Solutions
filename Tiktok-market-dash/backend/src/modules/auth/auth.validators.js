@@ -1,4 +1,5 @@
 import { body } from 'express-validator';
+import { withStrongPasswordRules } from '../../utils/passwordPolicy.js';
 
 export const registerValidators = [
   body('fullName')
@@ -14,17 +15,7 @@ export const registerValidators = [
     .isEmail()
     .withMessage('Enter a valid email address')
     .normalizeEmail(),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters')
-    .matches(/[A-Z]/)
-    .withMessage('Include at least one uppercase letter')
-    .matches(/[a-z]/)
-    .withMessage('Include at least one lowercase letter')
-    .matches(/[0-9]/)
-    .withMessage('Include at least one number'),
+  withStrongPasswordRules(body('password').notEmpty().withMessage('Password is required')),
 ];
 
 export const loginValidators = [
@@ -36,4 +27,20 @@ export const loginValidators = [
     .withMessage('Enter a valid email address')
     .normalizeEmail(),
   body('password').notEmpty().withMessage('Password is required'),
+];
+
+export const updateMeValidators = [
+  body('fullName').optional().isString().trim().isLength({ min: 3, max: 80 }),
+  body('name').optional().isString().trim().isLength({ min: 3, max: 80 }),
+  body('email').optional().isEmail().normalizeEmail(),
+  body('phone').optional({ nullable: true }).isString().trim().isLength({ max: 40 }),
+];
+
+export const changePasswordValidators = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  withStrongPasswordRules(body('newPassword').notEmpty().withMessage('New password is required')),
+];
+
+export const refreshValidators = [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required').isString(),
 ];

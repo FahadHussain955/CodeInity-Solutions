@@ -1,32 +1,31 @@
-# React + TypeScript + Vite
+# Nexora
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+AI-powered Commerce Growth Platform for marketplace sellers.
 
-Currently, two official plugins are available:
+**Full documentation (single source of truth):**  
+**[PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quick start
 
-## React Compiler
+```bash
+# Backend
+cd backend
+cp .env.example .env   # set DATABASE_URL, JWT secrets, CLIENT_URL, CORS_ORIGIN
+npm install
+npx prisma migrate deploy && npx prisma generate
+npm run seed && npm run dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Frontend (new terminal, repo root)
+cp .env.example .env   # VITE_API_URL=http://localhost:5000/api/v1
+npm install && npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open `http://localhost:5173` · Demo (after seed): `demo@nexora.com` / `Demo1234!`
+
+## Stack
+
+React 19 · Vite · Redux Toolkit · Tailwind · Express · Prisma · PostgreSQL · JWT · Google OAuth · Gemini (optional)
+
+## License
+
+UNLICENSED — academic / portfolio project.

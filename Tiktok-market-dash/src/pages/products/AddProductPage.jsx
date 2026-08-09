@@ -1,13 +1,20 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { ROUTES } from '@/constants/routes';
+import { createProduct, fetchProductById, updateProduct } from '@/features/products/productsSlice';
 
 const steps = ['Basic Info', 'Pricing & Stock', 'Media', 'Review'];
 
 const AddProductPage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
+  const dispatch = useDispatch();
+  const { actionStatus, error, selected } = useSelector((state) => state.products);
   const [step, setStep] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [formError, setFormError] = useState(null);
   const [form, setForm] = useState({
     name: '', sku: '', category: '', description: '',
     price: '', comparePrice: '', cost: '',
@@ -15,9 +22,59 @@ const AddProductPage = () => {
     status: 'Draft',
   });
 
+  useEffect(() => {
+    if (!isEdit) return;
+    dispatch(fetchProductById(id));
+  }, [dispatch, id, isEdit]);
+
+  useEffect(() => {
+    if (!isEdit || !selected || selected.id !== id) return;
+    setForm({
+      name: selected.name || '',
+      sku: selected.sku || '',
+      category: selected.category || '',
+      description: selected.description || '',
+      price: selected.price != null ? String(selected.price) : '',
+      comparePrice: '',
+      cost: selected.costPrice != null ? String(selected.costPrice) : '',
+      stock: selected.stock != null ? String(selected.stock) : '',
+      reorderPoint: selected.reorderLevel != null ? String(selected.reorderLevel) : '',
+      status: selected.status || 'Draft',
+    });
+  }, [isEdit, selected, id]);
+
   const update = (key, val) => setForm((p) => ({ ...p, [key]: val }));
 
   const inputClass = 'w-full bg-surface border border-outline-variant/50 rounded-lg py-2.5 px-4 text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm';
+
+  const submit = async () => {
+    setFormError(null);
+    if (!form.name.trim() || !form.sku.trim() || !form.price) {
+      setFormError('Name, SKU, and selling price are required.');
+      setStep(0);
+      return;
+    }
+    const payload = {
+      name: form.name.trim(),
+      sku: form.sku.trim(),
+      category: form.category || 'Uncategorized',
+      description: form.description || undefined,
+      price: Number(form.price),
+      costPrice: form.cost === '' ? null : Number(form.cost),
+      stock: form.stock === '' ? 0 : Number.parseInt(form.stock, 10),
+      reorderPoint: form.reorderPoint === '' ? 10 : Number.parseInt(form.reorderPoint, 10),
+      status: form.status,
+    };
+    const result = isEdit
+      ? await dispatch(updateProduct({ id, payload }))
+      : await dispatch(createProduct(payload));
+    if (createProduct.fulfilled.match(result) || updateProduct.fulfilled.match(result)) {
+      const productId = result.payload?.id || id;
+      navigate(productId ? `/dashboard/products/${productId}` : ROUTES.PRODUCTS);
+      return;
+    }
+    setFormError(result.payload || error || 'Unable to save product.');
+  };
 
   return (
     <div className="space-y-6 py-2 max-w-3xl">
@@ -27,9 +84,9 @@ const AddProductPage = () => {
           <div className="flex items-center gap-2 text-on-surface-variant mb-2">
             <button onClick={() => navigate(ROUTES.PRODUCTS)} className="text-label-caps uppercase tracking-wider hover:text-primary transition-colors">Products</button>
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-label-caps uppercase tracking-wider text-primary">New Product</span>
+            <span className="text-label-caps uppercase tracking-wider text-primary">{isEdit ? 'Edit Product' : 'New Product'}</span>
           </div>
-          <h2 className="text-display-lg-mobile text-on-background">Add Product</h2>
+          <h2 className="text-display-lg-mobile text-on-background">{isEdit ? 'Edit Product' : 'Add Product'}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors text-body-sm font-medium">
@@ -38,6 +95,12 @@ const AddProductPage = () => {
           </button>
         </div>
       </div>
+
+      {(formError || error) && (
+        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">
+          {formError || error}
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="glass-panel rounded-xl p-4">
@@ -224,6 +287,7 @@ const AddProductPage = () => {
               { label: 'SKU', value: form.sku || '—' },
               { label: 'Category', value: form.category || '—' },
               { label: 'Selling Price', value: form.price ? `$${form.price}` : '—' },
+              { label: 'Cost per Item', value: form.cost ? `$${form.cost}` : '—' },
               { label: 'Stock', value: form.stock || '—' },
               { label: 'Status', value: form.status },
             ].map(({ label, value }) => (
@@ -256,11 +320,13 @@ const AddProductPage = () => {
           </button>
         ) : (
           <button
-            onClick={() => navigate(ROUTES.PRODUCTS)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
+            type="button"
+            disabled={actionStatus === 'loading'}
+            onClick={submit}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm disabled:opacity-60"
           >
             <span className="material-symbols-outlined text-[18px]">check</span>
-            Create Product
+            {actionStatus === 'loading' ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Product'}
           </button>
         )}
       </div>

@@ -88,7 +88,7 @@ const Sidebar = () => {
             if (isConnected) {
               navigate(ROUTES.SETTINGS);
             } else {
-              openConnectModal('Shopify');
+              openConnectModal('TikTok Shop');
             }
           }}
           className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
@@ -96,7 +96,7 @@ const Sidebar = () => {
           <span className="material-symbols-outlined text-[18px]">
             {isConnected ? 'storefront' : 'link'}
           </span>
-          {isConnected ? 'Manage Connected Store' : 'Connect Shop'}
+          {isConnected ? 'Manage Connected Store' : 'Connect TikTok Shop'}
         </button>
       </div>
     </nav>

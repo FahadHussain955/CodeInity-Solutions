@@ -1,7 +1,12 @@
-import { useState } from 'react';
-import { mockAudiences, audienceDemographics } from '@/data/mockAudiences';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
-import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
+import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
+import {
+  fetchAudienceAnalytics,
+  fetchAudiencesList,
+  setAudiencePage,
+} from '@/features/audiences/audiencesSlice';
 
 const TYPE_COLORS = {
   Interest: 'bg-primary/10 text-primary border-primary/20',
@@ -10,14 +15,23 @@ const TYPE_COLORS = {
 };
 
 const AudiencePage = () => {
+  const dispatch = useDispatch();
+  const { items, demographics, pagination, status, error } = useSelector((s) => s.audiences);
   const [selected, setSelected] = useState(null);
-  const [page, setPage] = useState(1);
-  const demo = audienceDemographics;
-  const rows = paginateItems(mockAudiences, page, PAGE_SIZE);
+
+  useEffect(() => {
+    dispatch(fetchAudiencesList());
+    dispatch(fetchAudienceAnalytics());
+  }, [dispatch, pagination.page]);
+
+  const demo = demographics || {
+    gender: [],
+    age: [],
+    topRegions: [],
+  };
 
   return (
     <div className="space-y-6 py-2">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-on-surface-variant mb-2">
@@ -33,7 +47,10 @@ const AudiencePage = () => {
         </button>
       </div>
 
-      {/* Pixel Status */}
+      {error && (
+        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">{error}</div>
+      )}
+
       <div className="glass-panel rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-success-border bg-success-bg/30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-success flex items-center justify-center shrink-0">
@@ -51,13 +68,18 @@ const AudiencePage = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Audience List */}
         <div className="xl:col-span-2 glass-panel rounded-xl overflow-hidden">
           <div className="p-5 border-b border-outline-variant/20">
             <h3 className="text-headline-md text-on-background">Saved Audiences</h3>
           </div>
           <div className="divide-y divide-outline-variant/10">
-            {rows.map((aud) => (
+            {status === 'loading' && items.length === 0 && (
+              <div className="p-8 text-center text-on-surface-variant text-body-sm">Loading audiences…</div>
+            )}
+            {status !== 'loading' && items.length === 0 && (
+              <div className="p-8 text-center text-on-surface-variant text-body-sm">No audiences found.</div>
+            )}
+            {items.map((aud) => (
               <div
                 key={aud.id}
                 onClick={() => setSelected(aud.id === selected ? null : aud.id)}
@@ -78,7 +100,6 @@ const AudiencePage = () => {
                   </div>
                 </div>
 
-                {/* Expanded detail */}
                 {selected === aud.id && (
                   <div className="mt-4 grid grid-cols-3 gap-3 text-center bg-surface-container-low/50 rounded-xl p-4">
                     {[
@@ -96,16 +117,19 @@ const AudiencePage = () => {
               </div>
             ))}
           </div>
-          <Pagination current={page} total={mockAudiences.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          <Pagination
+            current={pagination.page}
+            total={pagination.total}
+            pageSize={pagination.limit || PAGE_SIZE}
+            onPageChange={(page) => dispatch(setAudiencePage(page))}
+          />
         </div>
 
-        {/* Demographics Panel */}
         <div className="space-y-4">
-          {/* Gender */}
           <div className="glass-panel rounded-xl p-5">
             <h3 className="text-headline-md text-on-background mb-4">Gender Split</h3>
             <div className="space-y-3">
-              {demo.gender.map(({ label, value }) => (
+              {(demo.gender || []).map(({ label, value }) => (
                 <div key={label}>
                   <div className="flex justify-between mb-1">
                     <span className="text-body-sm text-on-surface">{label}</span>
@@ -119,11 +143,10 @@ const AudiencePage = () => {
             </div>
           </div>
 
-          {/* Age */}
           <div className="glass-panel rounded-xl p-5">
             <h3 className="text-headline-md text-on-background mb-4">Age Groups</h3>
             <div className="flex items-end gap-1.5 h-28">
-              {demo.age.map(({ label, value }) => (
+              {(demo.age || []).map(({ label, value }) => (
                 <div key={label} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
                   <span className="text-label-caps text-outline text-[9px]">{value}%</span>
                   <div
@@ -136,11 +159,10 @@ const AudiencePage = () => {
             </div>
           </div>
 
-          {/* Top Regions */}
           <div className="glass-panel rounded-xl p-5">
             <h3 className="text-headline-md text-on-background mb-4">Top Regions</h3>
             <div className="space-y-3">
-              {demo.topRegions.map(({ country, share }) => (
+              {(demo.topRegions || []).map(({ country, share }) => (
                 <div key={country}>
                   <div className="flex justify-between mb-1">
                     <span className="text-body-sm text-on-surface">{country}</span>

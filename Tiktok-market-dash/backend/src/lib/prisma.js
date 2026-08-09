@@ -14,7 +14,15 @@ const createPrismaClient = () => {
   });
 };
 
-export const prisma = globalForPrisma.__nexoraPrisma ?? createPrismaClient();
+const isStaleClient = (client) =>
+  !client ||
+  typeof client.inventory?.count !== 'function' ||
+  typeof client.customer?.count !== 'function' ||
+  typeof client.storeIntegration?.count !== 'function' ||
+  typeof client.campaign?.count !== 'function';
+
+const cached = globalForPrisma.__nexoraPrisma;
+export const prisma = isStaleClient(cached) ? createPrismaClient() : cached;
 
 if (!env.isProd) {
   globalForPrisma.__nexoraPrisma = prisma;

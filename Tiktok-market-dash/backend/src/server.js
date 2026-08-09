@@ -1,6 +1,8 @@
 import app from './app.js';
 import { env } from './config/env.js';
 import { connectDatabase, disconnectDatabase, prisma } from './lib/prisma.js';
+import { startCronJobs } from './jobs/index.js';
+import { logger } from './utils/logger.js';
 
 const start = async () => {
   let dbReady = false;
@@ -8,28 +10,31 @@ const start = async () => {
   try {
     await connectDatabase();
     dbReady = true;
-    console.log('✓ PostgreSQL connected via Prisma');
+    logger.info('PostgreSQL connected via Prisma');
   } catch (error) {
-    console.error('✗ Failed to connect to PostgreSQL');
-    console.error(`  ${error.message}`);
-    console.error('  Tip: set DATABASE_URL in .env, or run: docker compose up -d');
+    logger.error('Failed to connect to PostgreSQL');
+    logger.error(error.message);
+    logger.warn('Tip: set DATABASE_URL in .env, or run: docker compose up -d');
 
     if (env.isProd) {
       process.exit(1);
     }
 
-    console.warn('⚠ Starting in degraded mode (development only)');
+    logger.warn('Starting in degraded mode (development only)');
   }
 
   const server = app.listen(env.port, () => {
-    console.log(`✓ Nexora API listening on http://localhost:${env.port}`);
-    console.log(`✓ Health: http://localhost:${env.port}${env.apiPrefix}/health`);
-    console.log(`✓ Environment: ${env.nodeEnv}`);
-    console.log(`✓ Database: ${dbReady ? 'connected' : 'offline'}`);
+    logger.info(`Nexora API listening on http://localhost:${env.port}`);
+    logger.info(`Health: http://localhost:${env.port}${env.apiPrefix}/health`);
+    logger.info(`Environment: ${env.nodeEnv}`);
+    logger.info(`Database: ${dbReady ? 'connected' : 'offline'}`);
+    if (dbReady) {
+      startCronJobs();
+    }
   });
 
   const shutdown = async (signal) => {
-    console.log(`\n${signal} received — shutting down`);
+    logger.info(`${signal} received — shutting down`);
     server.close(async () => {
       try {
         await disconnectDatabase();
@@ -43,7 +48,7 @@ const start = async () => {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   process.on('unhandledRejection', (reason) => {
-    console.error('Unhandled rejection:', reason);
+    logger.error('Unhandled rejection:', reason);
   });
 
   return { server, prisma };

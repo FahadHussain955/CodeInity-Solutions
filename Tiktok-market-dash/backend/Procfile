@@ -1,0 +1,4 @@
+# Nexora Backend (Node) — Render / Railway style
+# Use as reference; set env vars in the host dashboard.
+
+web: npm start

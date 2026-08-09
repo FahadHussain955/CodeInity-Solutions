@@ -1,9 +1,15 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockCampaigns, campaignStats } from '@/data/mockCampaigns';
+import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
-import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
+import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
 import FilterTabs from '@/components/ui/FilterTabs';
+import {
+  fetchCampaignAnalytics,
+  fetchCampaignsList,
+  setCampaignFilters,
+  setCampaignPage,
+} from '@/features/campaigns/campaignsSlice';
 
 const fmt = (n) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : n;
 
@@ -22,22 +28,25 @@ const objectiveColor = {
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('all');
-  const [page, setPage] = useState(1);
-
-  const filtered = useMemo(() => mockCampaigns.filter(
-    (c) => activeTab === 'all' || c.status.toLowerCase() === activeTab
-  ), [activeTab]);
+  const dispatch = useDispatch();
+  const { items, analytics, filters, pagination, status, error } = useSelector((s) => s.campaigns);
 
   useEffect(() => {
-    setPage(1);
-  }, [activeTab]);
+    dispatch(fetchCampaignsList());
+    dispatch(fetchCampaignAnalytics());
+  }, [dispatch, filters.status, filters.search, pagination.page]);
 
-  const rows = paginateItems(filtered, page, PAGE_SIZE);
+  const campaignStats = analytics || {
+    totalSpend: '…',
+    totalRevenue: '…',
+    avgRoas: '…',
+    totalImpressions: '…',
+    totalClicks: '…',
+    totalConversions: '…',
+  };
 
   return (
     <div className="space-y-6 py-2">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-on-surface-variant mb-2">
@@ -62,7 +71,10 @@ const CampaignsPage = () => {
         </div>
       </div>
 
-      {/* KPI Strip */}
+      {error && (
+        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">{error}</div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
           { label: 'Total Spend', value: campaignStats.totalSpend, icon: 'payments', sub: 'This month' },
@@ -85,7 +97,6 @@ const CampaignsPage = () => {
         ))}
       </div>
 
-      {/* TikTok Account Banner */}
       <div className="glass-panel rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-primary/10 bg-primary/5">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center shrink-0">
@@ -110,9 +121,12 @@ const CampaignsPage = () => {
         </button>
       </div>
 
-      {/* Toolbar — no outer card */}
       <div className="table-toolbar">
-        <FilterTabs tabs={TABS} value={activeTab} onChange={setActiveTab} />
+        <FilterTabs
+          tabs={TABS}
+          value={filters.status}
+          onChange={(key) => dispatch(setCampaignFilters({ status: key }))}
+        />
       </div>
 
       <div className="glass-panel rounded-xl flex flex-col shadow-sm overflow-hidden">
@@ -126,7 +140,13 @@ const CampaignsPage = () => {
               </tr>
             </thead>
             <tbody className="text-body-sm divide-y divide-outline-variant/10">
-              {rows.map((c) => {
+              {status === 'loading' && items.length === 0 && (
+                <tr><td colSpan={10} className="py-10 text-center text-on-surface-variant">Loading campaigns…</td></tr>
+              )}
+              {status !== 'loading' && items.length === 0 && (
+                <tr><td colSpan={10} className="py-10 text-center text-on-surface-variant">No campaigns found.</td></tr>
+              )}
+              {items.map((c) => {
                 const pct = c.budget > 0 ? Math.round((c.spent / c.budget) * 100) : 0;
                 return (
                   <tr
@@ -134,7 +154,6 @@ const CampaignsPage = () => {
                     onClick={() => navigate(`/dashboard/campaigns/${c.id}`)}
                     className="table-row-hover transition-all duration-200 cursor-pointer"
                   >
-                    {/* Campaign Name */}
                     <td className="py-3 px-5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center shrink-0">
@@ -144,19 +163,15 @@ const CampaignsPage = () => {
                         </div>
                         <div>
                           <p className="font-medium text-on-surface">{c.name}</p>
-                          <p className="text-outline text-[11px]">{c.adGroups} ad groups · {c.ads} ads · {c.id}</p>
+                          <p className="text-outline text-[11px]">{c.adGroups} ad groups · {c.ads} ads · {c.code || c.id}</p>
                         </div>
                       </div>
                     </td>
-
-                    {/* Objective */}
                     <td className="py-3 px-4">
                       <span className={`px-2 py-0.5 rounded-full text-label-caps border ${objectiveColor[c.objective] || ''}`}>
                         {c.objective}
                       </span>
                     </td>
-
-                    {/* Budget / Spent */}
                     <td className="py-3 px-4" style={{ minWidth: '150px' }}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-mono text-on-surface font-medium">${c.spent.toLocaleString()}</span>
@@ -170,13 +185,10 @@ const CampaignsPage = () => {
                       </div>
                       <span className="text-label-caps text-outline">{pct}% used</span>
                     </td>
-
                     <td className="py-3 px-4 font-mono text-on-surface-variant">{fmt(c.impressions)}</td>
                     <td className="py-3 px-4 font-mono text-on-surface-variant">{fmt(c.clicks)}</td>
                     <td className="py-3 px-4 font-mono text-on-surface">{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</td>
                     <td className="py-3 px-4 font-mono text-on-surface">{c.conversions > 0 ? c.conversions : '—'}</td>
-
-                    {/* ROAS */}
                     <td className="py-3 px-4">
                       {c.roas > 0 ? (
                         <span className={`font-mono font-bold ${c.roas >= 10 ? 'text-success' : 'text-warning'}`}>
@@ -184,9 +196,7 @@ const CampaignsPage = () => {
                         </span>
                       ) : <span className="text-outline">—</span>}
                     </td>
-
                     <td className="py-3 px-4"><StatusBadge status={c.status} /></td>
-
                     <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                       <button className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50">
                         <span className="material-symbols-outlined text-[18px]">more_vert</span>
@@ -198,7 +208,12 @@ const CampaignsPage = () => {
             </tbody>
           </table>
         </div>
-        <Pagination current={page} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+        <Pagination
+          current={pagination.page}
+          total={pagination.total}
+          pageSize={pagination.limit || PAGE_SIZE}
+          onPageChange={(page) => dispatch(setCampaignPage(page))}
+        />
       </div>
     </div>
   );

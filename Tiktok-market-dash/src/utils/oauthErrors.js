@@ -2,7 +2,7 @@
 export const oauthErrorMessage = (code, { page = 'login' } = {}) => {
   switch (code) {
     case 'google_not_configured':
-      return 'Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env.';
+      return 'Google Sign-In is not configured on this server. Please use email sign-in or contact the administrator.';
     case 'not_registered':
       return 'No account found for this Google email. Please create an account first.';
     case 'already_registered':

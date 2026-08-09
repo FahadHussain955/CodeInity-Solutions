@@ -28,6 +28,7 @@ const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 // ── Products ────────────────────────────────────────────────────────────────
 const ProductsPage   = lazy(() => import('@/pages/products/ProductsPage'));
 const AddProductPage = lazy(() => import('@/pages/products/AddProductPage'));
+const ProductDetailPage = lazy(() => import('@/pages/products/ProductDetailPage'));
 
 // ── Orders ──────────────────────────────────────────────────────────────────
 const OrdersPage     = lazy(() => import('@/pages/orders/OrdersPage'));
@@ -106,7 +107,7 @@ export const AppRouter = () => (
             {/* Products */}
             <Route path={ROUTES.PRODUCTS}     element={<ProductsPage />} />
             <Route path={ROUTES.PRODUCT_NEW}  element={<AddProductPage />} />
-            <Route path="/dashboard/products/:id"      element={<Navigate to={ROUTES.PRODUCTS} replace />} />
+            <Route path="/dashboard/products/:id"      element={<ProductDetailPage />} />
             <Route path="/dashboard/products/:id/edit" element={<AddProductPage />} />
 
             {/* Orders */}

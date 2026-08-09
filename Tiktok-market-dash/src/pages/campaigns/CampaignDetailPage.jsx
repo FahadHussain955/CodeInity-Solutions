@@ -1,41 +1,70 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { mockCampaigns } from '@/data/mockCampaigns';
-import { mockAds } from '@/data/mockAds';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { ROUTES } from '@/constants/routes';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
-
-const TikTokIcon = ({ size = 20 }) => (
-  <svg viewBox="0 0 24 24" style={{ width: size, height: size }} className="fill-current">
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.84a8.16 8.16 0 0 0 4.77 1.52V6.92a4.85 4.85 0 0 1-1-.23z" />
-  </svg>
-);
+import {
+  clearSelectedCampaign,
+  fetchCampaignById,
+  updateCampaign,
+} from '@/features/campaigns/campaignsSlice';
+import { fetchAdsList } from '@/features/ads/adsSlice';
 
 const fmt = (n) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const perfData = [42, 58, 51, 67, 73, 84, 78];
-const maxPerf = Math.max(...perfData);
 
 const CampaignDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const campaign = mockCampaigns.find((c) => c.id === id) || mockCampaigns[0];
-  const ads = mockAds.filter((a) => a.campaignId === campaign.id);
-  const pct = campaign.budget > 0 ? Math.round((campaign.spent / campaign.budget) * 100) : 0;
+  const dispatch = useDispatch();
+  const { selected: campaign, detailStatus, error } = useSelector((s) => s.campaigns);
+  const ads = useSelector((s) => s.ads.items);
   const [adsPage, setAdsPage] = useState(1);
+
+  useEffect(() => {
+    if (!id) return undefined;
+    dispatch(fetchCampaignById(id));
+    dispatch(fetchAdsList({ campaignId: id, limit: 50, status: 'All' }));
+    return () => {
+      dispatch(clearSelectedCampaign());
+    };
+  }, [id, dispatch]);
+
+  if (detailStatus === 'loading' && !campaign) {
+    return <div className="py-16 text-center text-on-surface-variant text-body-sm">Loading campaign…</div>;
+  }
+
+  if (!campaign) {
+    return (
+      <div className="py-16 text-center space-y-3">
+        <p className="text-on-surface-variant text-body-sm">{error || 'Campaign not found.'}</p>
+        <button type="button" onClick={() => navigate(ROUTES.CAMPAIGNS)} className="text-primary text-body-sm">Back to campaigns</button>
+      </div>
+    );
+  }
+
+  const pct = campaign.budget > 0 ? Math.round((campaign.spent / campaign.budget) * 100) : 0;
   const pagedAds = paginateItems(ads, adsPage, PAGE_SIZE);
+  const base = Math.max(campaign.roas || 1, 1);
+  const perfData = [0.7, 0.85, 0.75, 0.95, 1.05, 1.2, 1.1].map((m) => Math.round(base * m * 10) / 10);
+  const maxPerf = Math.max(...perfData, 1);
+  const targeting = campaign.targeting || {};
+
+  const toggleStatus = () => {
+    const next = campaign.status === 'Active' ? 'Paused' : 'Active';
+    dispatch(updateCampaign({ id: campaign.id, status: next }));
+  };
 
   return (
     <div className="space-y-6 py-2">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-on-surface-variant mb-2">
             <button onClick={() => navigate(ROUTES.CAMPAIGNS)} className="text-label-caps uppercase tracking-wider hover:text-primary transition-colors">Campaigns</button>
             <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-label-caps uppercase tracking-wider text-primary">{campaign.id}</span>
+            <span className="text-label-caps uppercase tracking-wider text-primary">{campaign.code || campaign.id}</span>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-display-lg-mobile text-on-background">{campaign.name}</h2>
@@ -47,12 +76,12 @@ const CampaignDetailPage = () => {
         </div>
         <div className="flex items-center gap-3">
           {campaign.status === 'Active' ? (
-            <button className="toolbar-control flex items-center gap-2 bg-warning-bg text-warning border border-warning-border px-4 rounded-lg text-body-sm font-medium hover:bg-warning-border transition-colors">
+            <button type="button" onClick={toggleStatus} className="toolbar-control flex items-center gap-2 bg-warning-bg text-warning border border-warning-border px-4 rounded-lg text-body-sm font-medium hover:bg-warning-border transition-colors">
               <span className="material-symbols-outlined text-[18px]">pause</span>
               Pause
             </button>
           ) : (
-            <button className="toolbar-control flex items-center gap-2 bg-success-bg text-success border border-success-border px-4 rounded-lg text-body-sm font-medium hover:bg-success-border transition-colors">
+            <button type="button" onClick={toggleStatus} className="toolbar-control flex items-center gap-2 bg-success-bg text-success border border-success-border px-4 rounded-lg text-body-sm font-medium hover:bg-success-border transition-colors">
               <span className="material-symbols-outlined text-[18px]">play_arrow</span>
               Resume
             </button>
@@ -64,7 +93,6 @@ const CampaignDetailPage = () => {
         </div>
       </div>
 
-      {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
           { label: 'Spent', value: `$${campaign.spent.toLocaleString()}`, note: `of $${campaign.budget.toLocaleString()}` },
@@ -83,14 +111,13 @@ const CampaignDetailPage = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Performance Chart */}
         <div className="xl:col-span-2 glass-panel rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-headline-md text-on-background">Daily Performance</h3>
               <p className="text-body-sm text-on-surface-variant mt-0.5">ROAS over the last 7 days</p>
             </div>
-            <span className="text-body-sm font-medium text-on-surface-variant">Avg ROAS: <span className="text-primary font-bold">{campaign.roas.toFixed(1)}x</span></span>
+            <span className="text-body-sm font-medium text-on-surface-variant">Avg ROAS: <span className="text-primary font-bold">{(campaign.roas || 0).toFixed(1)}x</span></span>
           </div>
           <div className="flex items-end gap-2 h-40">
             {perfData.map((v, i) => (
@@ -105,7 +132,6 @@ const CampaignDetailPage = () => {
             ))}
           </div>
 
-          {/* Budget Progress */}
           <div className="mt-6 p-4 bg-surface-container-low/50 rounded-xl border border-outline-variant/20">
             <div className="flex items-center justify-between mb-2">
               <span className="text-body-sm font-medium text-on-surface">Budget Utilization</span>
@@ -119,22 +145,21 @@ const CampaignDetailPage = () => {
             </div>
             <div className="flex justify-between mt-1">
               <span className="text-label-caps text-outline">${campaign.spent.toLocaleString()} spent</span>
-              <span className="text-label-caps text-outline">${(campaign.budget - campaign.spent).toLocaleString()} remaining</span>
+              <span className="text-label-caps text-outline">${Math.max(campaign.budget - campaign.spent, 0).toLocaleString()} remaining</span>
             </div>
           </div>
         </div>
 
-        {/* Targeting & Details */}
         <div className="space-y-4">
           <div className="glass-panel rounded-xl p-5">
             <h3 className="text-headline-md text-on-background mb-4">Targeting</h3>
             <div className="space-y-3">
               {[
                 { label: 'Objective', value: campaign.objective, icon: 'flag' },
-                { label: 'Locations', value: 'PK, SA, AE, US', icon: 'location_on' },
-                { label: 'Age Range', value: '18 – 44', icon: 'person' },
-                { label: 'Interests', value: 'Tech, Music, Lifestyle', icon: 'category' },
-                { label: 'Placements', value: 'In-Feed, TopView', icon: 'smart_display' },
+                { label: 'Locations', value: (targeting.locations || targeting.countries || ['PK', 'SA', 'AE', 'US']).toString().replace(/,/g, ', '), icon: 'location_on' },
+                { label: 'Age Range', value: targeting.ageRange || '18 – 44', icon: 'person' },
+                { label: 'Interests', value: (targeting.interests || ['Tech', 'Music', 'Lifestyle']).toString().replace(/,/g, ', '), icon: 'category' },
+                { label: 'Placements', value: (targeting.placements || ['In-Feed', 'TopView']).toString().replace(/,/g, ', '), icon: 'smart_display' },
               ].map(({ label, value, icon }) => (
                 <div key={label} className="flex items-start gap-3">
                   <span className="material-symbols-outlined text-[16px] text-on-surface-variant mt-0.5">{icon}</span>
@@ -152,14 +177,13 @@ const CampaignDetailPage = () => {
             <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-2">
               <span className="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
               <p className="text-body-sm text-on-surface-variant">
-                Increase daily budget by 20% — this campaign's ROAS is {campaign.roas.toFixed(1)}x, well above your account average of 12x.
+                Increase daily budget by 20% — this campaign&apos;s ROAS is {(campaign.roas || 0).toFixed(1)}x, well above your account average of 12x.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Ads in this Campaign */}
       {ads.length > 0 && (
         <div className="glass-panel rounded-xl overflow-hidden">
           <div className="p-6 border-b border-outline-variant/20 flex items-center justify-between">
@@ -189,7 +213,7 @@ const CampaignDetailPage = () => {
                         </div>
                         <div>
                           <p className="font-medium text-on-surface">{ad.name}</p>
-                          <p className="text-outline text-[11px]">{ad.duration} · {ad.id}</p>
+                          <p className="text-outline text-[11px]">{ad.duration} · {ad.code || ad.id}</p>
                         </div>
                       </div>
                     </td>

@@ -32,6 +32,7 @@ export const ROUTES = {
   // Account
   SETTINGS: '/dashboard/settings',
   PROFILE: '/dashboard/profile',
+  ANALYTICS: '/dashboard',
 
   NOT_FOUND: '*',
 };

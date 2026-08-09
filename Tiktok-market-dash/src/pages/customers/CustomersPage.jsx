@@ -1,30 +1,60 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockCustomers, customerStats } from '@/data/mockCustomers';
+import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
-import Pagination, { PAGE_SIZE, paginateItems } from '@/components/ui/Pagination';
+import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
+import {
+  clearCustomerNotice,
+  createCustomer,
+  fetchCustomerAnalytics,
+  fetchCustomersList,
+  setCustomerFilters,
+  setCustomerPage,
+} from '@/features/customers/customersSlice';
 
 const CustomersPage = () => {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const dispatch = useDispatch();
+  const {
+    items,
+    analytics,
+    filters,
+    pagination,
+    status,
+    analyticsStatus,
+    error,
+    notice,
+    actionStatus,
+  } = useSelector((state) => state.customers);
 
-  const filtered = useMemo(() => mockCustomers.filter(
-    (c) =>
-      !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase())
-  ), [search]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', city: '' });
 
   useEffect(() => {
-    setPage(1);
-  }, [search]);
+    dispatch(fetchCustomersList());
+    dispatch(fetchCustomerAnalytics());
+  }, [dispatch, filters.search, filters.filter, filters.sort, pagination.page]);
 
-  const rows = paginateItems(filtered, page, PAGE_SIZE);
+  useEffect(() => {
+    if (!notice && !error) return undefined;
+    const t = window.setTimeout(() => dispatch(clearCustomerNotice()), 3500);
+    return () => window.clearTimeout(t);
+  }, [notice, error, dispatch]);
+
+  const stats = analytics?.cards || [];
+
+  const submitCreate = async () => {
+    const result = await dispatch(createCustomer(form));
+    if (createCustomer.fulfilled.match(result)) {
+      setAddOpen(false);
+      setForm({ fullName: '', email: '', phone: '', city: '' });
+      dispatch(fetchCustomersList());
+      dispatch(fetchCustomerAnalytics());
+    }
+  };
 
   return (
     <div className="space-y-6 py-2">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-on-surface-variant mb-2">
@@ -39,16 +69,39 @@ const CustomersPage = () => {
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export
           </button>
-          <button className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm">
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
+          >
             <span className="material-symbols-outlined text-[18px]">person_add</span>
             Add Customer
           </button>
         </div>
       </div>
 
-      {/* Stats */}
+      {(notice || error) && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-body-sm ${
+            error
+              ? 'border-error/30 bg-error-container text-on-error-container'
+              : 'border-success-border bg-success-bg text-success'
+          }`}
+        >
+          {error || notice}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {customerStats.map(({ label, value, icon, change }) => (
+        {(analyticsStatus === 'loading' && !stats.length
+          ? [
+              { label: 'Total Customers', value: '…', icon: 'group', change: 'Loading' },
+              { label: 'New This Month', value: '…', icon: 'person_add', change: 'Loading' },
+              { label: 'Returning Rate', value: '…', icon: 'autorenew', change: 'Loading' },
+              { label: 'Avg. Order Value', value: '…', icon: 'payments', change: 'Loading' },
+            ]
+          : stats
+        ).map(({ label, value, icon, change }) => (
           <div key={label} className="glass-panel rounded-xl p-5 flex items-start justify-between">
             <div>
               <p className="text-label-caps text-on-surface-variant uppercase mb-1">{label}</p>
@@ -62,23 +115,29 @@ const CustomersPage = () => {
         ))}
       </div>
 
-      {/* Toolbar — no outer card */}
       <div className="table-toolbar">
         <h3 className="text-headline-md text-on-background">All Customers</h3>
         <div className="toolbar-row w-full sm:w-auto">
           <div className="relative w-full sm:w-64 group">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary text-[18px] transition-colors">search</span>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={(e) => dispatch(setCustomerFilters({ search: e.target.value }))}
               className="toolbar-control w-full bg-surface border border-outline-variant/50 pl-9 pr-3 text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
               placeholder="Search customers..."
             />
           </div>
-          <button className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-3 text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm shrink-0">
-            <span className="material-symbols-outlined text-[18px]">filter_list</span>
-            <span className="hidden sm:inline">Filter</span>
-          </button>
+          <select
+            value={filters.filter}
+            onChange={(e) => dispatch(setCustomerFilters({ filter: e.target.value }))}
+            className="toolbar-control bg-surface text-on-surface border border-outline-variant/50 px-3 text-body-sm font-medium shadow-sm"
+          >
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="high_value">High Value</option>
+            <option value="recent">Recent</option>
+          </select>
         </div>
       </div>
 
@@ -88,12 +147,22 @@ const CustomersPage = () => {
             <thead>
               <tr className="border-b border-outline-variant/20 bg-surface-container-low/50">
                 {['Customer', 'Email', 'Phone', 'Orders', 'Total Spent', 'Joined', 'Status', ''].map((h) => (
-                  <th key={h} className="py-3 px-6 text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold">{h}</th>
+                  <th key={h || 'actions'} className="py-3 px-6 text-label-caps text-on-surface-variant uppercase tracking-wider font-semibold">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="text-body-sm divide-y divide-outline-variant/10">
-              {rows.map((customer) => (
+              {status === 'loading' && items.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center text-on-surface-variant">Loading customers…</td>
+                </tr>
+              )}
+              {status !== 'loading' && items.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-10 text-center text-on-surface-variant">No customers found.</td>
+                </tr>
+              )}
+              {items.map((customer) => (
                 <tr
                   key={customer.id}
                   onClick={() => navigate(`/dashboard/customers/${customer.id}`)}
@@ -102,13 +171,13 @@ const CustomersPage = () => {
                   <td className="py-3 px-6">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-semibold text-body-sm shrink-0">
-                        {customer.name.charAt(0)}
+                        {(customer.name || '?').charAt(0)}
                       </div>
                       <span className="font-medium text-on-surface">{customer.name}</span>
                     </div>
                   </td>
                   <td className="py-3 px-6 text-on-surface-variant">{customer.email}</td>
-                  <td className="py-3 px-6 text-on-surface-variant font-mono text-[12px]">{customer.phone}</td>
+                  <td className="py-3 px-6 text-on-surface-variant font-mono text-[12px]">{customer.phone || '—'}</td>
                   <td className="py-3 px-6 text-on-surface text-center font-medium">{customer.orders}</td>
                   <td className="py-3 px-6 font-mono font-medium text-on-surface">{customer.spent}</td>
                   <td className="py-3 px-6 text-on-surface-variant">{customer.joined}</td>
@@ -123,11 +192,52 @@ const CustomersPage = () => {
             </tbody>
           </table>
         </div>
-        <Pagination current={page} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+        <Pagination
+          current={pagination.page}
+          total={pagination.total}
+          pageSize={pagination.limit || PAGE_SIZE}
+          onPageChange={(page) => dispatch(setCustomerPage(page))}
+        />
       </div>
+
+      {addOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <button type="button" className="absolute inset-0 bg-on-background/40" onClick={() => setAddOpen(false)} aria-label="Close" />
+          <div className="relative z-10 w-full max-w-md glass-panel rounded-xl p-6 shadow-lg bg-surface-container-lowest space-y-3">
+            <h3 className="text-headline-md text-on-background mb-2">Add Customer</h3>
+            {[
+              ['fullName', 'Full name'],
+              ['email', 'Email'],
+              ['phone', 'Phone'],
+              ['city', 'City'],
+            ].map(([key, label]) => (
+              <div key={key}>
+                <label className="block text-label-caps text-on-surface-variant uppercase mb-1">{label}</label>
+                <input
+                  value={form[key]}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                  className="input-glass w-full rounded-lg py-2.5 px-3 text-body-sm"
+                />
+              </div>
+            ))}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setAddOpen(false)} className="px-4 py-2 rounded-lg text-body-sm border border-outline-variant/50">
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionStatus === 'loading'}
+                onClick={submitCreate}
+                className="px-4 py-2 rounded-lg text-body-sm bg-primary text-on-primary disabled:opacity-60"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default CustomersPage;
-

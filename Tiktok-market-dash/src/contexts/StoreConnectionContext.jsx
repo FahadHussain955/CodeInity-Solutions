@@ -1,48 +1,139 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  connectIntegration,
+  disconnectIntegration,
+  fetchIntegrationStatus,
+  syncIntegration,
+} from '@/features/integrations/integrationsSlice';
 
 const StoreConnectionContext = createContext(null);
 
 export const StoreConnectionProvider = ({ children }) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [storeDetails, setStoreDetails] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activePlatform, setActivePlatform] = useState(null); // 'Shopify' | 'TikTok Shop' | 'WooCommerce'
+  const dispatch = useDispatch();
+  const { stores, selected, status: loadStatus } = useSelector((s) => s.integrations);
+  const isAuthenticated = useSelector((s) => Boolean(s.auth?.isAuthenticated && s.auth?.token));
 
-  const openConnectModal = (platform = 'Shopify') => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activePlatform, setActivePlatform] = useState(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    dispatch(fetchIntegrationStatus());
+  }, [dispatch, isAuthenticated]);
+
+  const isConnected = stores.length > 0;
+  const storeDetails = useMemo(() => {
+    if (!selected) return null;
+    return {
+      id: selected.id,
+      platform: selected.platform,
+      name: selected.name || selected.storeName,
+      url: selected.url || selected.storeUrl,
+      connectedAt: selected.connectedAt || selected.createdAt,
+      lastSync: selected.lastSync,
+      lastSyncLabel: selected.lastSyncLabel,
+      syncStatus: selected.syncStatus,
+      syncProgress: selected.syncProgress,
+    };
+  }, [selected]);
+
+  const openConnectModal = useCallback((platform = 'TikTok Shop') => {
     setActivePlatform(platform);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const closeConnectModal = () => {
+  const closeConnectModal = useCallback(() => {
     setIsModalOpen(false);
     setActivePlatform(null);
-  };
+  }, []);
 
-  const connectStore = (details) => {
-    setIsConnected(true);
-    setStoreDetails(details);
-  };
+  const connectStore = useCallback(
+    async ({ platform, name, url, apiToken }) => {
+      const result = await dispatch(
+        connectIntegration({
+          platform: platform || activePlatform || 'TikTok Shop',
+          storeName: name,
+          storeUrl: url,
+          apiToken,
+        })
+      );
+      if (connectIntegration.rejected.match(result)) {
+        throw new Error(result.payload || 'Unable to connect store.');
+      }
+      await dispatch(fetchIntegrationStatus());
+      return result.payload;
+    },
+    [dispatch, activePlatform]
+  );
 
-  const disconnectStore = () => {
-    setIsConnected(false);
-    setStoreDetails(null);
-  };
+  const disconnectStore = useCallback(
+    async (id) => {
+      const targetId = id || selected?.id;
+      if (!targetId) return;
+      const result = await dispatch(disconnectIntegration(targetId));
+      if (disconnectIntegration.rejected.match(result)) {
+        throw new Error(result.payload || 'Unable to disconnect store.');
+      }
+      await dispatch(fetchIntegrationStatus());
+    },
+    [dispatch, selected?.id]
+  );
+
+  const syncStore = useCallback(
+    async (id) => {
+      const targetId = id || selected?.id;
+      if (!targetId) throw new Error('No connected store to sync.');
+      const result = await dispatch(syncIntegration(targetId));
+      if (syncIntegration.rejected.match(result)) {
+        throw new Error(result.payload || 'Unable to sync store.');
+      }
+      await dispatch(fetchIntegrationStatus());
+      return result.payload;
+    },
+    [dispatch, selected?.id]
+  );
+
+  const getStoreForPlatform = useCallback(
+    (platformName) => stores.find((s) => s.platform === platformName) || null,
+    [stores]
+  );
+
+  const value = useMemo(
+    () => ({
+      isConnected,
+      storeDetails,
+      stores,
+      isModalOpen,
+      activePlatform,
+      loadStatus,
+      openConnectModal,
+      closeConnectModal,
+      connectStore,
+      disconnectStore,
+      syncStore,
+      getStoreForPlatform,
+      refreshStores: () => dispatch(fetchIntegrationStatus()),
+    }),
+    [
+      isConnected,
+      storeDetails,
+      stores,
+      isModalOpen,
+      activePlatform,
+      loadStatus,
+      openConnectModal,
+      closeConnectModal,
+      connectStore,
+      disconnectStore,
+      syncStore,
+      getStoreForPlatform,
+      dispatch,
+    ]
+  );
 
   return (
-    <StoreConnectionContext.Provider
-      value={{
-        isConnected,
-        storeDetails,
-        isModalOpen,
-        activePlatform,
-        openConnectModal,
-        closeConnectModal,
-        connectStore,
-        disconnectStore,
-      }}
-    >
-      {children}
-    </StoreConnectionContext.Provider>
+    <StoreConnectionContext.Provider value={value}>{children}</StoreConnectionContext.Provider>
   );
 };
 
