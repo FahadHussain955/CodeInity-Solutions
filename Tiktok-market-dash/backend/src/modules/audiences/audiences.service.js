@@ -5,6 +5,11 @@ import {
   paginatedResult,
   parsePagination,
 } from '../../utils/queryHelpers.js';
+import {
+  resolveShopFilter,
+  resolveWritableShopId,
+  shopWhere,
+} from '../../utils/shopScope.js';
 
 const TYPE_LABEL = {
   INTEREST: 'Interest',
@@ -75,6 +80,8 @@ export const mapAudience = (a) => ({
   ageRange: a.ageRange,
   countries: a.countries || [],
   interests: a.interests || [],
+  storeIntegrationId: a.storeIntegrationId || null,
+  shopId: a.storeIntegrationId || null,
   updatedAt: a.updatedAt,
 });
 
@@ -82,8 +89,8 @@ const audienceInclude = {
   _count: { select: { campaigns: true } },
 };
 
-const buildWhere = (userId, query = {}) => {
-  const where = { userId };
+const buildWhere = (userId, query = {}, shopId = null) => {
+  const where = { userId, ...shopWhere(shopId) };
   const search = String(query.search || '').trim();
   const type = parseType(query.type);
   const status = parseStatus(query.status || query.filter);
@@ -165,7 +172,8 @@ const DEFAULT_DEMOGRAPHICS = {
 export const audiencesService = {
   async list(userId, query = {}) {
     const { page, limit, skip } = parsePagination(query);
-    const where = buildWhere(userId, query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const where = buildWhere(userId, query, shopId);
     const orderBy = buildOrderBy(query.sort);
 
     const [total, rows] = await Promise.all([
@@ -203,10 +211,15 @@ export const audiencesService = {
 
     const type = parseType(payload.type) || 'INTEREST';
     const status = parseStatus(payload.status) || 'READY';
+    const storeIntegrationId = await resolveWritableShopId(
+      userId,
+      payload.shopId || payload.storeIntegrationId
+    );
 
     const audience = await prisma.audience.create({
       data: {
         userId,
+        storeIntegrationId,
         code,
         audienceName: name,
         type,
@@ -281,9 +294,10 @@ export const audiencesService = {
     return { deleted: true, id: existing.id, code: existing.code };
   },
 
-  async analytics(userId) {
+  async analytics(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const audiences = await prisma.audience.findMany({
-      where: { userId },
+      where: { userId, ...shopWhere(shopId) },
       include: audienceInclude,
     });
 

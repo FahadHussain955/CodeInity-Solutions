@@ -10,6 +10,16 @@ const mapNotification = (n) => ({
   link: n.link,
   isRead: n.isRead,
   meta: n.meta,
+  icon:
+    n.type === 'INVENTORY'
+      ? 'inventory_2'
+      : n.type === 'ORDER'
+        ? 'shopping_bag'
+        : n.type === 'AI'
+          ? 'auto_awesome'
+          : n.type === 'CAMPAIGN'
+            ? 'campaign'
+            : 'notifications',
   createdAt: n.createdAt,
   updatedAt: n.updatedAt,
 });

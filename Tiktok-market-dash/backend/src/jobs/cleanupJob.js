@@ -1,9 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../utils/logger.js';
 
-/**
- * Expire AI insight cache rows and purge old revoked refresh sessions.
- */
+
 export const runCleanupJob = async () => {
   const now = new Date();
   const revokedCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

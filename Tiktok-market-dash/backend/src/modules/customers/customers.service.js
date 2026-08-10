@@ -8,6 +8,11 @@ import {
   relativeDaysAgo,
   toNumber,
 } from '../../utils/queryHelpers.js';
+import {
+  resolveShopFilter,
+  resolveWritableShopId,
+  shopWhere,
+} from '../../utils/shopScope.js';
 
 const mapCustomer = (c) => ({
   id: c.id,
@@ -35,6 +40,8 @@ const mapCustomer = (c) => ({
   status: c.status === 'ACTIVE' ? 'Active' : 'Inactive',
   statusRaw: c.status,
   tags: c.tags || [],
+  storeIntegrationId: c.storeIntegrationId || null,
+  shopId: c.storeIntegrationId || null,
   createdAt: c.createdAt,
   updatedAt: c.updatedAt,
 });
@@ -72,8 +79,8 @@ const recomputeCustomerStats = async (tx, customerId) => {
   });
 };
 
-const buildWhere = (userId, query = {}) => {
-  const where = { userId };
+const buildWhere = (userId, query = {}, shopId = null) => {
+  const where = { userId, ...shopWhere(shopId) };
   const search = String(query.search || '').trim();
   const filter = String(query.filter || query.status || 'all').toLowerCase();
 
@@ -120,7 +127,8 @@ const buildOrderBy = (sort) => {
 export const customersService = {
   async list(userId, query = {}) {
     const { page, limit, skip } = parsePagination(query);
-    const where = buildWhere(userId, query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const where = buildWhere(userId, query, shopId);
     const orderBy = buildOrderBy(query.sort);
 
     const [total, rows] = await Promise.all([
@@ -150,14 +158,19 @@ export const customersService = {
   async create(userId, payload) {
     const email = String(payload.email || '').trim().toLowerCase();
     if (!email) throw ApiError.badRequest('Email is required.');
-    const existing = await prisma.customer.findUnique({
-      where: { userId_email: { userId, email } },
+    const storeIntegrationId = await resolveWritableShopId(
+      userId,
+      payload.shopId || payload.storeIntegrationId
+    );
+    const existing = await prisma.customer.findFirst({
+      where: { userId, email, storeIntegrationId },
     });
     if (existing) throw ApiError.conflict('A customer with this email already exists.');
 
     const customer = await prisma.customer.create({
       data: {
         userId,
+        storeIntegrationId,
         fullName: String(payload.fullName || payload.name || '').trim(),
         email,
         phone: payload.phone || null,
@@ -181,8 +194,12 @@ export const customersService = {
 
     if (payload.email && payload.email.toLowerCase() !== existing.email) {
       const email = String(payload.email).trim().toLowerCase();
-      const clash = await prisma.customer.findUnique({
-        where: { userId_email: { userId, email } },
+      const clash = await prisma.customer.findFirst({
+        where: {
+          userId,
+          email,
+          storeIntegrationId: existing.storeIntegrationId,
+        },
       });
       if (clash) throw ApiError.conflict('A customer with this email already exists.');
     }
@@ -318,7 +335,9 @@ export const customersService = {
     };
   },
 
-  async analytics(userId) {
+  async analytics(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const baseWhere = { userId, ...shopWhere(shopId) };
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const thirtyDaysAgo = new Date(now);
@@ -333,14 +352,14 @@ export const customersService = {
       previousPeriodNew,
       customers,
     ] = await Promise.all([
-      prisma.customer.count({ where: { userId } }),
-      prisma.customer.count({ where: { userId, createdAt: { gte: startOfMonth } } }),
-      prisma.customer.count({ where: { userId, status: 'ACTIVE' } }),
+      prisma.customer.count({ where: baseWhere }),
+      prisma.customer.count({ where: { ...baseWhere, createdAt: { gte: startOfMonth } } }),
+      prisma.customer.count({ where: { ...baseWhere, status: 'ACTIVE' } }),
       prisma.customer.count({
-        where: { userId, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+        where: { ...baseWhere, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
       }),
       prisma.customer.findMany({
-        where: { userId },
+        where: baseWhere,
         orderBy: { totalSpent: 'desc' },
       }),
     ]);
@@ -415,8 +434,8 @@ export const customersService = {
     };
   },
 
-  async dashboardSummary(userId) {
-    const analytics = await this.analytics(userId);
+  async dashboardSummary(userId, query = {}) {
+    const analytics = await this.analytics(userId, query);
     return {
       totalCustomers: analytics.totalCustomers,
       customerGrowth: analytics.customerGrowth,

@@ -25,9 +25,9 @@ export const inventoryService = {
     }
   },
 
-  async analytics() {
+  async analytics(params = {}) {
     try {
-      const response = await axiosPrivate.get('/inventory/analytics');
+      const response = await axiosPrivate.get('/inventory/analytics', { params });
       return unwrap(response);
     } catch (error) {
       throw new InventoryApiError(getErrorMessage(error, 'Unable to load inventory analytics.'), {
@@ -36,9 +36,9 @@ export const inventoryService = {
     }
   },
 
-  async dashboard() {
+  async dashboard(params = {}) {
     try {
-      const response = await axiosPrivate.get('/inventory/dashboard');
+      const response = await axiosPrivate.get('/inventory/dashboard', { params });
       return unwrap(response);
     } catch (error) {
       throw new InventoryApiError(getErrorMessage(error, 'Unable to load inventory dashboard.'), {

@@ -13,6 +13,8 @@ const prisma = new PrismaClient({ adapter });
 const money = (n) => n.toFixed(2);
 const DEMO_EMAIL = 'demo@nexora.com';
 const DEMO_PASSWORD = 'Demo1234!';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@nexora.com').toLowerCase().trim();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin1234!';
 
 async function ensureDemoUser() {
   const hashed = await bcrypt.hash(DEMO_PASSWORD, 12);
@@ -24,6 +26,7 @@ async function ensureDemoUser() {
       deletedAt: null,
       isEmailVerified: true,
       provider: 'local',
+      role: 'user',
     },
     create: {
       fullName: 'Nexora Demo',
@@ -31,7 +34,7 @@ async function ensureDemoUser() {
       password: hashed,
       isEmailVerified: true,
       provider: 'local',
-      role: 'admin',
+      role: 'user',
     },
   });
 
@@ -89,10 +92,54 @@ async function ensureDemoUser() {
   return user;
 }
 
+async function ensureAdminUser() {
+  const hashed = await bcrypt.hash(ADMIN_PASSWORD, 12);
+  const user = await prisma.user.upsert({
+    where: { email: ADMIN_EMAIL },
+    update: {
+      fullName: 'Nexora Admin',
+      password: hashed,
+      deletedAt: null,
+      isEmailVerified: true,
+      provider: 'local',
+      role: 'admin',
+    },
+    create: {
+      fullName: 'Nexora Admin',
+      email: ADMIN_EMAIL,
+      password: hashed,
+      isEmailVerified: true,
+      provider: 'local',
+      role: 'admin',
+    },
+  });
+
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: {
+      storeName: 'Nexora Admin Store',
+      timezone: 'Asia/Karachi',
+      currency: 'USD',
+    },
+    create: {
+      userId: user.id,
+      storeName: 'Nexora Admin Store',
+      businessName: 'Nexora Admin',
+      contactEmail: ADMIN_EMAIL,
+      timezone: 'Asia/Karachi',
+      currency: 'USD',
+    },
+  });
+
+  return user;
+}
+
 async function main() {
   console.log('Seeding inventory, customers, campaigns, ads & audiences…');
   const demoUser = await ensureDemoUser();
-  console.log(`Demo login: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+  const adminUser = await ensureAdminUser();
+  console.log(`Demo login:  ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+  console.log(`Admin login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
 
   // Clear dependent tables (keep users)
   await prisma.aiInsightCache.deleteMany();

@@ -1,10 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
 import FilterTabs from '@/components/ui/FilterTabs';
+import CampaignFormModal from '@/components/modals/CampaignFormModal';
+import NoShopGate from '@/components/ui/NoShopGate';
 import {
+  clearCampaignNotice,
+  createCampaign,
   fetchCampaignAnalytics,
   fetchCampaignsList,
   setCampaignFilters,
@@ -29,12 +33,14 @@ const objectiveColor = {
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { items, analytics, filters, pagination, status, error } = useSelector((s) => s.campaigns);
+  const { items, analytics, filters, pagination, status, error, notice } = useSelector((s) => s.campaigns);
+  const selectedShopId = useSelector((s) => s.integrations?.selectedShopId);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     dispatch(fetchCampaignsList());
     dispatch(fetchCampaignAnalytics());
-  }, [dispatch, filters.status, filters.search, pagination.page]);
+  }, [dispatch, filters.status, filters.search, pagination.page, selectedShopId]);
 
   const campaignStats = analytics || {
     totalSpend: '…',
@@ -43,6 +49,16 @@ const CampaignsPage = () => {
     totalImpressions: '…',
     totalClicks: '…',
     totalConversions: '…',
+  };
+
+  const handleCreate = async (payload) => {
+    const result = await dispatch(createCampaign(payload));
+    if (createCampaign.rejected.match(result)) {
+      throw new Error(result.payload || 'Unable to create campaign.');
+    }
+    dispatch(fetchCampaignsList());
+    dispatch(fetchCampaignAnalytics());
+    return result.payload;
   };
 
   return (
@@ -56,23 +72,43 @@ const CampaignsPage = () => {
           </div>
           <h2 className="text-display-lg-mobile md:text-display-lg text-on-background">Campaigns</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
+      </div>
+
+      <NoShopGate description="Connect your TikTok Shop to start managing campaigns.">
+      <div className="flex items-center justify-end gap-3">
+          <button type="button" className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export Report
           </button>
           <button
-            onClick={() => navigate('/dashboard/campaigns/new')}
+            type="button"
+            onClick={() => setCreateOpen(true)}
             className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             New Campaign
           </button>
-        </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">{error}</div>
+      {(error || notice) && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-body-sm ${
+            error
+              ? 'border-error/30 bg-error-container text-on-error-container'
+              : 'border-success-border bg-success-bg text-success'
+          }`}
+        >
+          {error || notice}
+          {notice && (
+            <button
+              type="button"
+              className="ml-3 underline"
+              onClick={() => dispatch(clearCampaignNotice())}
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -115,7 +151,7 @@ const CampaignsPage = () => {
             <p className="text-body-sm text-on-surface-variant mt-0.5">TikTok Business Account · 48.2K followers · 1.2M views this month</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-outline-variant/50 rounded-lg text-body-sm font-medium text-on-surface hover:bg-surface-variant/30 transition-colors shrink-0">
+        <button type="button" className="flex items-center gap-2 px-4 py-2 border border-outline-variant/50 rounded-lg text-body-sm font-medium text-on-surface hover:bg-surface-variant/30 transition-colors shrink-0">
           <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
           Manage Account
         </button>
@@ -198,7 +234,7 @@ const CampaignsPage = () => {
                     </td>
                     <td className="py-3 px-4"><StatusBadge status={c.status} /></td>
                     <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                      <button className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50">
+                      <button type="button" className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50">
                         <span className="material-symbols-outlined text-[18px]">more_vert</span>
                       </button>
                     </td>
@@ -215,6 +251,14 @@ const CampaignsPage = () => {
           onPageChange={(page) => dispatch(setCampaignPage(page))}
         />
       </div>
+
+      <CampaignFormModal
+        open={createOpen}
+        mode="create"
+        onClose={() => setCreateOpen(false)}
+        onSubmit={handleCreate}
+      />
+      </NoShopGate>
     </div>
   );
 };

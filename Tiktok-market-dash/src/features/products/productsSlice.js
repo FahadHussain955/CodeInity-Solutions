@@ -1,20 +1,31 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { productsService } from '@/services/productsService';
 import { PAGE_SIZE } from '@/components/ui/Pagination';
+import { shopIdQueryParam } from '@/utils/shopQuery';
+
+export const EMPTY_PRODUCT_FILTERS = {
+  search: '',
+  status: 'all',
+  category: 'all',
+  minPrice: '',
+  maxPrice: '',
+  stockStatus: 'all',
+  sortBy: 'updated',
+  sortOrder: 'desc',
+  range: 'all',
+  start: null,
+  end: null,
+};
 
 const initialState = {
   items: [],
   counts: { all: 0, active: 0, draft: 0, archived: 0 },
+  categories: [],
   selected: null,
   performance: null,
   rankings: null,
-  filters: {
-    search: '',
-    status: 'all',
-    range: 'all',
-    start: null,
-    end: null,
-  },
+  filters: { ...EMPTY_PRODUCT_FILTERS },
+  lowStockThreshold: 10,
   pagination: { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 },
   status: 'idle',
   detailStatus: 'idle',
@@ -33,20 +44,54 @@ const rangeParams = (filters) => {
   return params;
 };
 
+const buildListParams = (filters, pagination, shopId) => {
+  const params = {
+    page: pagination.page,
+    limit: pagination.limit,
+    shopId,
+    sortBy: filters.sortBy || 'updated',
+    sortOrder: filters.sortOrder || 'desc',
+    ...rangeParams(filters),
+  };
+
+  if (filters.search?.trim()) params.search = filters.search.trim();
+  if (filters.status && filters.status !== 'all') params.status = filters.status;
+  if (filters.category && filters.category !== 'all') params.category = filters.category;
+  if (filters.stockStatus && filters.stockStatus !== 'all') {
+    params.stockStatus = filters.stockStatus;
+  }
+  if (filters.minPrice !== '' && filters.minPrice != null) {
+    const min = Number(filters.minPrice);
+    if (Number.isFinite(min)) params.minPrice = min;
+  }
+  if (filters.maxPrice !== '' && filters.maxPrice != null) {
+    const max = Number(filters.maxPrice);
+    if (Number.isFinite(max)) params.maxPrice = max;
+  }
+  return params;
+};
+
 export const fetchProductsList = createAsyncThunk(
   'products/list',
   async (_, { getState, rejectWithValue }) => {
     try {
       const { filters, pagination } = getState().products;
-      return await productsService.list({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: filters.search || undefined,
-        status: filters.status !== 'all' ? filters.status : undefined,
-        ...rangeParams(filters),
-      });
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await productsService.list(buildListParams(filters, pagination, shopId));
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load products.');
+    }
+  }
+);
+
+export const fetchProductCategories = createAsyncThunk(
+  'products/categories',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await productsService.categories({ shopId });
+    } catch (error) {
+      return rejectWithValue(error.message || 'Unable to load categories.');
     }
   }
 );
@@ -76,9 +121,10 @@ export const fetchProductPerformance = createAsyncThunk(
 
 export const createProduct = createAsyncThunk(
   'products/create',
-  async (payload, { rejectWithValue }) => {
+  async (payload, { getState, rejectWithValue }) => {
     try {
-      return await productsService.create(payload);
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await productsService.create({ ...payload, ...(shopId ? { shopId } : {}) });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to create product.');
     }
@@ -102,6 +148,21 @@ const productsSlice = createSlice({
   reducers: {
     setProductFilters(state, action) {
       state.filters = { ...state.filters, ...action.payload };
+      state.pagination.page = 1;
+    },
+    clearProductFilters(state) {
+      const status = state.filters.status;
+      const range = state.filters.range;
+      const start = state.filters.start;
+      const end = state.filters.end;
+      state.filters = {
+        ...EMPTY_PRODUCT_FILTERS,
+        // Keep catalog status tabs + performance range; clear search/category/price/stock only.
+        status,
+        range,
+        start,
+        end,
+      };
       state.pagination.page = 1;
     },
     setProductPage(state, action) {
@@ -133,10 +194,16 @@ const productsSlice = createSlice({
         state.items = action.payload?.items || [];
         state.counts = action.payload?.counts || state.counts;
         state.pagination = action.payload?.pagination || state.pagination;
+        if (action.payload?.lowStockThreshold != null) {
+          state.lowStockThreshold = action.payload.lowStockThreshold;
+        }
       })
       .addCase(fetchProductsList.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(fetchProductCategories.fulfilled, (state, action) => {
+        state.categories = action.payload?.items || [];
       })
       .addCase(fetchProductById.pending, (state) => {
         state.detailStatus = 'loading';
@@ -193,6 +260,7 @@ const productsSlice = createSlice({
 
 export const {
   setProductFilters,
+  clearProductFilters,
   setProductPage,
   setPerformanceRange,
   clearSelectedProduct,

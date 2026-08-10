@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { env } from '../config/env.js';
@@ -14,12 +14,14 @@ const createPrismaClient = () => {
   });
 };
 
+/** Invalidate cached client when schema fields (e.g. lowStockThreshold) are missing after generate. */
 const isStaleClient = (client) =>
   !client ||
   typeof client.inventory?.count !== 'function' ||
   typeof client.customer?.count !== 'function' ||
   typeof client.storeIntegration?.count !== 'function' ||
-  typeof client.campaign?.count !== 'function';
+  typeof client.campaign?.count !== 'function' ||
+  !Prisma.UserSettingsScalarFieldEnum?.lowStockThreshold;
 
 const cached = globalForPrisma.__nexoraPrisma;
 export const prisma = isStaleClient(cached) ? createPrismaClient() : cached;

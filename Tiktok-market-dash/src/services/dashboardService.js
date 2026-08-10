@@ -16,6 +16,7 @@ const rangeParams = (range = {}) => {
   if (range.start) params.start = new Date(range.start).toISOString();
   if (range.end) params.end = new Date(range.end).toISOString();
   if (range.limit) params.limit = range.limit;
+  if (range.shopId) params.shopId = range.shopId;
   return params;
 };
 

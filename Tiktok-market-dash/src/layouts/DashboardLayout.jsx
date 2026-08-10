@@ -1,13 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import Sidebar from '@/components/navigation/Sidebar';
 import Navbar from '@/components/navigation/Navbar';
 import ConnectStoreModal from '@/components/modals/ConnectStoreModal';
+import TikTokConnectPrompt from '@/components/modals/TikTokConnectPrompt';
 import AIInsightsPanel from '@/components/panels/AIInsightsPanel';
+import { fetchDashboardOverview } from '@/features/dashboard/dashboardSlice';
 
 const DashboardLayout = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+  const dispatch = useDispatch();
+  const selectedShopId = useSelector((s) => s.integrations?.selectedShopId);
+  const storeCount = useSelector((s) => s.integrations?.stores?.length || 0);
+  const integrationsStatus = useSelector((s) => s.integrations?.status);
+  const range = useSelector((s) => s.dashboard?.range);
+
+  // Re-fetch dashboard when the active shop filter changes — only if a shop is connected.
+  useEffect(() => {
+    if (integrationsStatus !== 'succeeded' || storeCount === 0) return;
+    if (!selectedShopId) return;
+    dispatch(fetchDashboardOverview(range || { preset: 'today' }));
+  }, [dispatch, selectedShopId, storeCount, integrationsStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-background text-on-background font-body-md text-body-md antialiased flex h-screen overflow-hidden">
@@ -43,6 +58,7 @@ const DashboardLayout = () => {
       </div>
       
       {/* Global Modals */}
+      <TikTokConnectPrompt />
       <ConnectStoreModal />
       <AIInsightsPanel isOpen={isInsightsOpen} onClose={() => setIsInsightsOpen(false)} />
     </div>

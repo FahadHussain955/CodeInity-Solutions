@@ -2,7 +2,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '@/constants/config';
 import { storage } from '@/utils/storage';
 import { AUTH_STORAGE_KEY } from '@/constants/auth';
-import { notifySessionInvalid } from '@/lib/sessionBridge';
+import { isIntentionalLogout, notifySessionInvalid } from '@/lib/sessionBridge';
 
 export const axiosPublic = axios.create({
   baseURL: API_BASE_URL,
@@ -27,7 +27,17 @@ axiosPrivate.interceptors.request.use(
 
 let refreshPromise = null;
 
+const isAuthLogoutRequest = (config) => {
+  const url = String(config?.url || '');
+  return url.includes('/auth/logout');
+};
+
 const clearSessionLocally = () => {
+  // Intentional Sign Out clears auth itself — do not treat that as expiry.
+  if (isIntentionalLogout()) {
+    storage.remove(AUTH_STORAGE_KEY);
+    return;
+  }
   storage.remove(AUTH_STORAGE_KEY);
   notifySessionInvalid('expired');
 };
@@ -60,8 +70,16 @@ axiosPrivate.interceptors.response.use(
 
     if (status !== 401 || !original || original._retry) {
       if (status === 401) {
-        clearSessionLocally();
+        // Logout endpoints often return 401 after local token wipe — ignore for session UX.
+        if (!isAuthLogoutRequest(original) && !isIntentionalLogout()) {
+          clearSessionLocally();
+        }
       }
+      return Promise.reject(error);
+    }
+
+    // Don't attempt refresh / expiry redirect during intentional logout.
+    if (isIntentionalLogout() || isAuthLogoutRequest(original)) {
       return Promise.reject(error);
     }
 

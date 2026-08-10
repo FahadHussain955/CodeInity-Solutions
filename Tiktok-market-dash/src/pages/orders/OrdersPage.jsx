@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
 import FilterTabs from '@/components/ui/FilterTabs';
+import NoShopGate from '@/components/ui/NoShopGate';
 import {
   clearOrderNotice,
   fetchOrdersList,
@@ -17,10 +18,11 @@ const OrdersPage = () => {
   const { items, counts, filters, pagination, status, error, notice } = useSelector(
     (state) => state.orders
   );
+  const selectedShopId = useSelector((state) => state.integrations?.selectedShopId);
 
   useEffect(() => {
     dispatch(fetchOrdersList());
-  }, [dispatch, filters.search, filters.filter, pagination.page]);
+  }, [dispatch, filters.search, filters.filter, pagination.page, selectedShopId]);
 
   useEffect(() => {
     if (!notice && !error) return undefined;
@@ -74,7 +76,10 @@ const OrdersPage = () => {
           </div>
           <h2 className="text-display-lg-mobile md:text-display-lg text-on-background">Orders</h2>
         </div>
-        <div className="flex items-center gap-3">
+      </div>
+
+      <NoShopGate description="Connect your TikTok Shop to start managing orders.">
+      <div className="flex items-center justify-end gap-3">
           <button
             type="button"
             className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm"
@@ -82,7 +87,6 @@ const OrdersPage = () => {
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export
           </button>
-        </div>
       </div>
 
       {(notice || error) && (
@@ -233,6 +237,7 @@ const OrdersPage = () => {
           onPageChange={(page) => dispatch(setOrderPage(page))}
         />
       </div>
+      </NoShopGate>
     </div>
   );
 };

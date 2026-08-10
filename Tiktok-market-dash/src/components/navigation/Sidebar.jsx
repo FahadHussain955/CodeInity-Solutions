@@ -82,8 +82,9 @@ const Sidebar = () => {
       </div>
 
       {/* CTA */}
-      <div className="p-4 mt-auto border-t border-outline-variant/20">
+      <div className="px-3 py-3 mt-auto border-t border-outline-variant/20">
         <button
+          type="button"
           onClick={() => {
             if (isConnected) {
               navigate(ROUTES.SETTINGS);
@@ -91,12 +92,16 @@ const Sidebar = () => {
               openConnectModal('TikTok Shop');
             }
           }}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
+          className={
+            isConnected
+              ? 'w-full flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg border border-outline-variant/50 bg-surface text-on-surface text-body-sm font-medium hover:bg-surface-variant/40 transition-colors'
+              : 'w-full flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-on-primary text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm'
+          }
         >
-          <span className="material-symbols-outlined text-[18px]">
+          <span className="material-symbols-outlined text-[16px]">
             {isConnected ? 'storefront' : 'link'}
           </span>
-          {isConnected ? 'Manage Connected Store' : 'Connect TikTok Shop'}
+          {isConnected ? 'Manage Shops' : 'Connect TikTok Shop'}
         </button>
       </div>
     </nav>

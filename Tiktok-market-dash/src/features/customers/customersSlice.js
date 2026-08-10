@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { customersService } from '@/services/customersService';
 import { PAGE_SIZE } from '@/components/ui/Pagination';
+import { shopIdQueryParam } from '@/utils/shopQuery';
 
 const initialFilters = {
   search: '',
@@ -31,12 +32,14 @@ export const fetchCustomersList = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { filters, pagination } = getState().customers;
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
       return await customersService.list({
         page: pagination.page,
         limit: pagination.limit,
         search: filters.search || undefined,
         filter: filters.filter !== 'all' ? filters.filter : undefined,
         sort: filters.sort,
+        shopId,
       });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load customers.');
@@ -46,9 +49,10 @@ export const fetchCustomersList = createAsyncThunk(
 
 export const fetchCustomerAnalytics = createAsyncThunk(
   'customers/analytics',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return await customersService.analytics();
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await customersService.analytics({ shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load analytics.');
     }
@@ -57,9 +61,10 @@ export const fetchCustomerAnalytics = createAsyncThunk(
 
 export const fetchCustomersDashboard = createAsyncThunk(
   'customers/dashboard',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return await customersService.dashboard();
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await customersService.dashboard({ shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load customer dashboard.');
     }
@@ -90,9 +95,10 @@ export const fetchCustomerPurchaseHistory = createAsyncThunk(
 
 export const createCustomer = createAsyncThunk(
   'customers/create',
-  async (payload, { rejectWithValue }) => {
+  async (payload, { getState, rejectWithValue }) => {
     try {
-      return await customersService.create(payload);
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await customersService.create({ ...payload, ...(shopId ? { shopId } : {}) });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to create customer.');
     }

@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { authService } from '@/services/authService';
 import { storage } from '@/utils/storage';
 import { AUTH_ACTIVITY_KEY, AUTH_STORAGE_KEY } from '@/constants/auth';
+import { beginIntentionalLogout } from '@/lib/sessionBridge';
 
 export { AUTH_STORAGE_KEY };
 
@@ -131,10 +132,12 @@ export const restoreSession = createAsyncThunk(
 );
 
 export const logoutUser = createAsyncThunk('auth/logout', async () => {
+  beginIntentionalLogout();
   try {
+    // Call while tokens are still present so the server can revoke the session.
     await authService.logout();
   } catch {
-    /* still clear local session */
+    /* still clear local session in fulfilled */
   }
   return true;
 });
@@ -172,6 +175,7 @@ const authSlice = createSlice({
       if (state.status === 'failed') state.status = 'idle';
     },
     logout: (state) => {
+      // Used by session-expiry / idle handlers — do NOT mark intentional Sign Out.
       state.status = 'idle';
       state.error = null;
       clearSessionState(state);
@@ -238,12 +242,16 @@ const authSlice = createSlice({
         clearSessionState(state);
       })
       .addCase(logoutUser.pending, (state) => {
+        beginIntentionalLogout();
         state.status = 'idle';
         state.error = null;
+        // Keep tokens until the logout request completes (see thunk body).
+      })
+      .addCase(logoutUser.fulfilled, (state) => {
         clearSessionState(state);
       })
-      .addCase(logoutUser.fulfilled, () => {
-        /* session already cleared in pending */
+      .addCase(logoutUser.rejected, (state) => {
+        clearSessionState(state);
       });
   },
 });

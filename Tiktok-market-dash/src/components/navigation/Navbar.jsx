@@ -11,8 +11,13 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '@/features/notifications/notificationsSlice';
+import UserAvatar from '@/components/ui/UserAvatar';
+import ShopSwitcher from '@/components/navigation/ShopSwitcher';
 
-const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search products, SKUs, or categories...' }) => {
+const iconBtn =
+  'inline-flex items-center justify-center h-8 w-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-variant/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30';
+
+const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search products…' }) => {
   const { toggleTheme } = useTheme();
   const { logout, user } = useAuth();
   const dispatch = useDispatch();
@@ -24,8 +29,8 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
   const { items: notifications, unreadCount } = useSelector((state) => state.notifications);
 
   const handleLogout = () => {
+    // Intentional Sign Out — SessionIdleGuard redirects without ?session=expired
     logout();
-    navigate(ROUTES.LOGIN);
   };
 
   useEffect(() => {
@@ -65,60 +70,67 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
     };
   }, [profileOpen, notifOpen]);
 
-  const initial = (user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase();
-
   return (
-    <header className="flex justify-between items-center px-container-margin h-18 z-40 fixed top-0 right-0 w-full md:w-[calc(100%-260px)] bg-navbar/80 backdrop-blur-xl border-b border-outline-variant/20 shadow-sm transition-all duration-300">
+    <header className="flex items-center gap-3 px-4 md:px-6 h-18 z-40 fixed top-0 right-0 w-full md:w-[calc(100%-260px)] bg-navbar/80 backdrop-blur-xl border-b border-outline-variant/20">
       <button
+        type="button"
         onClick={onMenuToggle}
-        className="md:hidden text-on-surface-variant p-2 -ml-2 rounded-lg hover:bg-surface-variant/50"
+        className={`md:hidden shrink-0 ${iconBtn} -ml-1`}
+        aria-label="Open menu"
       >
-        <span className="material-symbols-outlined">menu</span>
+        <span className="material-symbols-outlined text-[22px]">menu</span>
       </button>
 
-      <div className="flex-1 max-w-md hidden md:flex items-center">
-        <div className="relative w-full group">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">
+      {/* Balanced search — not full-width */}
+      <div className="hidden md:block w-[200px] lg:w-[240px] xl:w-[280px] shrink min-w-0">
+        <div className="relative group">
+          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none group-focus-within:text-primary transition-colors">
             search
           </span>
           <input
-            className="w-full bg-transparent border border-outline-variant/50 rounded-full py-2 pl-10 pr-4 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+            className="w-full h-8 bg-surface border border-outline-variant/40 rounded-lg pl-9 pr-3 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
             placeholder={searchPlaceholder}
-            type="text"
+            type="search"
+            aria-label="Search products"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-4 ml-auto">
+      <div className="flex items-center gap-1.5 sm:gap-2 ml-auto min-w-0">
+        <ShopSwitcher className="hidden sm:flex shrink-0" />
+
         <button
+          type="button"
           onClick={onInsightsClick}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors font-body-sm text-body-sm font-medium"
+          className="btn-ai-insights inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-body-sm font-medium shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         >
-          <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-          <span className="hidden sm:inline">AI Insights</span>
+          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+            auto_awesome
+          </span>
+          <span className="hidden lg:inline">AI Insights</span>
         </button>
 
-        <div className="h-6 w-px bg-outline-variant/30 mx-2 hidden sm:block" />
+        <div className="h-5 w-px bg-outline-variant/30 mx-0.5 hidden sm:block shrink-0" aria-hidden="true" />
 
-        <div className="relative" ref={notifRef}>
+        <div className="relative shrink-0" ref={notifRef}>
           <button
             type="button"
             onClick={() => {
               setNotifOpen((o) => !o);
               setProfileOpen(false);
             }}
-            className="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant/50 relative"
+            className={`${iconBtn} relative`}
             aria-label="Notifications"
             aria-expanded={notifOpen}
           >
-            <span className="material-symbols-outlined">notifications</span>
+            <span className="material-symbols-outlined text-[20px]">notifications</span>
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full border-2 border-surface" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-error rounded-full" />
             )}
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 top-10 w-80 max-h-[420px] overflow-hidden rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-lg z-50 flex flex-col">
+            <div className="absolute right-0 top-9 w-80 max-h-[420px] overflow-hidden rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-lg z-50 flex flex-col">
               <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/20">
                 <p className="text-body-sm font-medium text-on-background">Notifications</p>
                 {unreadCount > 0 && (
@@ -143,6 +155,12 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
                     type="button"
                     onClick={() => {
                       if (!n.isRead) dispatch(markNotificationRead(n.id));
+                      setNotifOpen(false);
+                      if (n.link) {
+                        navigate(n.link);
+                      } else if (n.type === 'INVENTORY') {
+                        navigate('/dashboard/inventory?status=low_stock');
+                      }
                     }}
                     className={`w-full text-left px-4 py-3 border-b border-outline-variant/10 hover:bg-surface-variant/30 transition-colors ${
                       n.isRead ? 'opacity-70' : ''
@@ -175,14 +193,15 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
         </div>
 
         <button
+          type="button"
           onClick={toggleTheme}
-          className="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant/50 hidden sm:block"
+          className={`${iconBtn} hidden sm:inline-flex`}
           aria-label="Toggle theme"
         >
-          <span className="material-symbols-outlined">contrast</span>
+          <span className="material-symbols-outlined text-[20px]">contrast</span>
         </button>
 
-        <div className="relative ml-2" ref={profileRef}>
+        <div className="relative shrink-0" ref={profileRef}>
           <button
             type="button"
             onClick={() => {
@@ -191,25 +210,24 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
             }}
             aria-expanded={profileOpen}
             aria-haspopup="menu"
-            className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-primary-container flex items-center justify-center text-on-primary-container text-label-caps font-bold"
+            className="h-8 w-8 rounded-full overflow-hidden border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/30 p-0"
           >
-            {user?.avatar ? (
-              <img src={user.avatar} alt="User profile" className="w-full h-full object-cover" />
-            ) : (
-              initial
-            )}
+            <UserAvatar user={user} alt="User profile" className="w-full h-full rounded-full" />
           </button>
 
           {profileOpen && (
             <div
               role="menu"
-              className="absolute right-0 top-10 w-52 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-lg p-1.5 z-50"
+              className="absolute right-0 top-9 w-52 rounded-xl bg-surface-container-lowest border border-outline-variant/30 shadow-lg p-1.5 z-50"
             >
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => { navigate(ROUTES.PROFILE); setProfileOpen(false); }}
-                className="w-full h-11 flex items-center gap-3 px-4 rounded-lg text-on-surface bg-transparent hover:bg-surface-variant/50 transition-colors duration-150 font-body-sm text-body-sm"
+                onClick={() => {
+                  navigate(ROUTES.PROFILE);
+                  setProfileOpen(false);
+                }}
+                className="w-full h-10 flex items-center gap-3 px-3 rounded-lg text-on-surface bg-transparent hover:bg-surface-variant/50 transition-colors duration-150 font-body-sm text-body-sm"
               >
                 <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">person</span>
                 Profile
@@ -217,8 +235,11 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => { navigate(ROUTES.SETTINGS); setProfileOpen(false); }}
-                className="w-full h-11 flex items-center gap-3 px-4 rounded-lg text-on-surface bg-transparent hover:bg-surface-variant/50 transition-colors duration-150 font-body-sm text-body-sm"
+                onClick={() => {
+                  navigate(ROUTES.SETTINGS);
+                  setProfileOpen(false);
+                }}
+                className="w-full h-10 flex items-center gap-3 px-3 rounded-lg text-on-surface bg-transparent hover:bg-surface-variant/50 transition-colors duration-150 font-body-sm text-body-sm"
               >
                 <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">settings</span>
                 Settings
@@ -228,7 +249,7 @@ const Navbar = ({ onMenuToggle, onInsightsClick, searchPlaceholder = 'Search pro
                 type="button"
                 role="menuitem"
                 onClick={handleLogout}
-                className="w-full h-11 flex items-center gap-3 px-4 rounded-lg text-error bg-transparent hover:bg-error-container transition-colors duration-150 font-body-sm text-body-sm"
+                className="w-full h-10 flex items-center gap-3 px-3 rounded-lg text-error bg-transparent hover:bg-error-container transition-colors duration-150 font-body-sm text-body-sm"
               >
                 <span className="material-symbols-outlined text-[18px] text-error shrink-0">logout</span>
                 Sign Out

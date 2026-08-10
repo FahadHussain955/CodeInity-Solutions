@@ -4,6 +4,8 @@ import {
   orderNetRevenue,
   sumRefundAmounts,
 } from '../../utils/refundMath.js';
+import { getLowStockThreshold, isLowStock } from '../../utils/lowStock.js';
+import { resolveShopFilter, shopWhere } from '../../utils/shopScope.js';
 
 const CANCELLED = 'CANCELLED';
 const REFUNDED = 'REFUNDED';
@@ -11,6 +13,10 @@ const DELIVERED = 'DELIVERED';
 
 const ownershipWhere = (userId) => ({
   OR: [{ userId }, { userId: null }],
+});
+
+const productScopeWhere = (userId, shopId) => ({
+  AND: [ownershipWhere(userId), shopWhere(shopId)],
 });
 
 const startOfDay = (date) => {
@@ -59,10 +65,11 @@ const parseRange = (query = {}) => {
   return { start, end, previousStart, previousEnd, preset: preset || 'today' };
 };
 
-const orderWhereInRange = (userId, start, end, extra = {}) => ({
+const orderWhereInRange = (userId, start, end, shopId = null, extra = {}) => ({
   userId,
   createdAt: { gte: start, lte: end },
   status: { notIn: [CANCELLED, REFUNDED] },
+  ...shopWhere(shopId),
   ...extra,
 });
 
@@ -133,7 +140,8 @@ const rollupSeries = (series, chunkSize) => {
 export const dashboardService = {
   async getKpis(userId, query = {}) {
     const { start, end, previousStart, previousEnd } = parseRange(query);
-    const productScope = ownershipWhere(userId);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const productScope = productScopeWhere(userId, shopId);
 
     const [
       periodNet,
@@ -145,12 +153,12 @@ export const dashboardService = {
       overallNet,
       campaigns,
     ] = await Promise.all([
-      loadOrdersNet(orderWhereInRange(userId, start, end)),
-      loadOrdersNet(orderWhereInRange(userId, previousStart, previousEnd)),
+      loadOrdersNet(orderWhereInRange(userId, start, end, shopId)),
+      loadOrdersNet(orderWhereInRange(userId, previousStart, previousEnd, shopId)),
       prisma.product.count({ where: { status: 'ACTIVE', ...productScope } }),
-      prisma.customer.count({ where: { userId } }),
+      prisma.customer.count({ where: { userId, ...shopWhere(shopId) } }),
       prisma.customer.count({
-        where: { userId, createdAt: { gte: previousStart, lte: previousEnd } },
+        where: { userId, ...shopWhere(shopId), createdAt: { gte: previousStart, lte: previousEnd } },
       }),
       prisma.inventory.findMany({
         where: { product: productScope },
@@ -159,9 +167,9 @@ export const dashboardService = {
           product: { select: { price: true, costPrice: true, userId: true } },
         },
       }),
-      loadOrdersNet({ userId, status: { notIn: [CANCELLED, REFUNDED] } }),
+      loadOrdersNet({ userId, ...shopWhere(shopId), status: { notIn: [CANCELLED, REFUNDED] } }),
       prisma.campaign.findMany({
-        where: { userId },
+        where: { userId, ...shopWhere(shopId) },
         select: {
           totalSpend: true,
           revenue: true,
@@ -191,7 +199,7 @@ export const dashboardService = {
     const overallAov = overallOrderCount === 0 ? 0 : overallNet.netRevenue / overallOrderCount;
 
     const newCustomers = await prisma.customer.count({
-      where: { userId, createdAt: { gte: start, lte: end } },
+      where: { userId, ...shopWhere(shopId), createdAt: { gte: start, lte: end } },
     });
     const customerGrowth = pctChange(newCustomers, previousCustomers);
 
@@ -292,8 +300,9 @@ export const dashboardService = {
 
   async getRevenue(userId, query = {}) {
     const { start, end, preset } = parseRange(query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const orders = await prisma.order.findMany({
-      where: orderWhereInRange(userId, start, end),
+      where: orderWhereInRange(userId, start, end, shopId),
       select: {
         totalAmount: true,
         status: true,
@@ -344,9 +353,10 @@ export const dashboardService = {
 
   async getSales(userId, query = {}) {
     const { start, end, previousStart, previousEnd } = parseRange(query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const [orders, prevOrders, newCustomers, prevNewCustomers] = await Promise.all([
       prisma.order.findMany({
-        where: orderWhereInRange(userId, start, end),
+        where: orderWhereInRange(userId, start, end, shopId),
         select: {
           totalAmount: true,
           status: true,
@@ -355,16 +365,22 @@ export const dashboardService = {
         },
       }),
       prisma.order.findMany({
-        where: orderWhereInRange(userId, previousStart, previousEnd),
+        where: orderWhereInRange(userId, previousStart, previousEnd, shopId),
         select: {
           totalAmount: true,
           status: true,
           refunds: { select: { amount: true } },
         },
       }),
-      prisma.customer.count({ where: { userId, createdAt: { gte: start, lte: end } } }),
       prisma.customer.count({
-        where: { userId, createdAt: { gte: previousStart, lte: previousEnd } },
+        where: { userId, ...shopWhere(shopId), createdAt: { gte: start, lte: end } },
+      }),
+      prisma.customer.count({
+        where: {
+          userId,
+          ...shopWhere(shopId),
+          createdAt: { gte: previousStart, lte: previousEnd },
+        },
       }),
     ]);
 
@@ -399,10 +415,13 @@ export const dashboardService = {
     };
   },
 
-  async getProductInsights(userId) {
-    const productScope = ownershipWhere(userId);
+  async getProductInsights(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const productScope = productScopeWhere(userId, shopId);
     const items = await prisma.orderItem.findMany({
-      where: { order: { userId, status: { notIn: [CANCELLED, REFUNDED] } } },
+      where: {
+        order: { userId, ...shopWhere(shopId), status: { notIn: [CANCELLED, REFUNDED] } },
+      },
       select: {
         productId: true,
         productName: true,
@@ -493,16 +512,21 @@ export const dashboardService = {
 
     const inventory = await prisma.inventory.findMany({
       where: { product: productScope },
-      include: { product: { select: { name: true, sku: true, userId: true } } },
+      include: {
+        product: { select: { name: true, sku: true, userId: true, storeIntegrationId: true } },
+      },
     });
+    const threshold = await getLowStockThreshold(userId);
     const lowStockProducts = inventory
       .filter((row) => !row.product?.userId || row.product.userId === userId)
-      .filter((row) => row.currentStock > 0 && row.currentStock <= row.reorderLevel)
+      .filter((row) => !shopId || row.product?.storeIntegrationId === shopId)
+      .filter((row) => isLowStock(row.currentStock, threshold))
       .map((row) => ({
         name: row.product.name,
         sku: row.product.sku,
         stock: row.currentStock,
-        reorderLevel: row.reorderLevel,
+        reorderLevel: threshold,
+        threshold,
       }))
       .slice(0, 10);
 
@@ -511,21 +535,30 @@ export const dashboardService = {
 
   async getCustomerInsights(userId, query = {}) {
     const { start, end, previousStart, previousEnd } = parseRange(query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const [
       newCustomers,
       prevNew,
       customers,
       returning,
     ] = await Promise.all([
-      prisma.customer.count({ where: { userId, createdAt: { gte: start, lte: end } } }),
       prisma.customer.count({
-        where: { userId, createdAt: { gte: previousStart, lte: previousEnd } },
+        where: { userId, ...shopWhere(shopId), createdAt: { gte: start, lte: end } },
+      }),
+      prisma.customer.count({
+        where: {
+          userId,
+          ...shopWhere(shopId),
+          createdAt: { gte: previousStart, lte: previousEnd },
+        },
       }),
       prisma.customer.findMany({
-        where: { userId },
+        where: { userId, ...shopWhere(shopId) },
         select: { totalSpent: true, totalOrders: true },
       }),
-      prisma.customer.count({ where: { userId, totalOrders: { gte: 2 } } }),
+      prisma.customer.count({
+        where: { userId, ...shopWhere(shopId), totalOrders: { gte: 2 } },
+      }),
     ]);
 
     const total = customers.length;
@@ -547,9 +580,11 @@ export const dashboardService = {
   async getRecentOrders(userId, query = {}) {
     const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit, 10) || 10));
     const { start, end } = parseRange(query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
 
     const where = {
       userId,
+      ...shopWhere(shopId),
       createdAt: { gte: start, lte: end },
     };
 
@@ -566,7 +601,7 @@ export const dashboardService = {
     // If range has no orders, fall back to latest overall (keeps dashboard useful)
     if (orders.length === 0) {
       orders = await prisma.order.findMany({
-        where: { userId },
+        where: { userId, ...shopWhere(shopId) },
         include: {
           customer: { select: { fullName: true } },
           items: { select: { productName: true }, take: 1 },
@@ -594,7 +629,8 @@ export const dashboardService = {
 
   async getActivity(userId, query = {}) {
     const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit, 10) || 20));
-    const productScope = ownershipWhere(userId);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const productScope = productScopeWhere(userId, shopId);
 
     const [products, orders, movements, customers] = await Promise.all([
       prisma.product.findMany({
@@ -604,7 +640,7 @@ export const dashboardService = {
         select: { id: true, name: true, userId: true, createdAt: true, updatedAt: true },
       }),
       prisma.order.findMany({
-        where: { userId },
+        where: { userId, ...shopWhere(shopId) },
         orderBy: { createdAt: 'desc' },
         take: 10,
         select: {
@@ -623,7 +659,7 @@ export const dashboardService = {
         include: { product: { select: { name: true, userId: true } } },
       }),
       prisma.customer.findMany({
-        where: { userId },
+        where: { userId, ...shopWhere(shopId) },
         orderBy: { createdAt: 'desc' },
         take: 10,
         select: { id: true, fullName: true, createdAt: true },
@@ -688,20 +724,26 @@ export const dashboardService = {
       }));
   },
 
-  async getStoreHealth(userId) {
+  async getStoreHealth(userId, query = {}) {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const productScope = ownershipWhere(userId);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const productScope = productScopeWhere(userId, shopId);
     const [activeProducts, productCount, inventory, orderTotal, fulfillable] = await Promise.all([
       prisma.product.count({ where: { status: 'ACTIVE', ...productScope } }),
       prisma.product.count({ where: productScope }),
       prisma.inventory.findMany({
         where: { product: productScope },
-        select: { currentStock: true, reorderLevel: true, product: { select: { userId: true } } },
+        select: {
+          currentStock: true,
+          reorderLevel: true,
+          product: { select: { userId: true, storeIntegrationId: true } },
+        },
       }),
-      prisma.order.count({ where: { userId, createdAt: { gte: since } } }),
+      prisma.order.count({ where: { userId, ...shopWhere(shopId), createdAt: { gte: since } } }),
       prisma.order.count({
         where: {
           userId,
+          ...shopWhere(shopId),
           createdAt: { gte: since },
           status: { in: ['DELIVERED', 'PROCESSING'] },
         },
@@ -712,12 +754,11 @@ export const dashboardService = {
       (i) => !i.product?.userId || i.product.userId === userId
     );
 
+    const threshold = await getLowStockThreshold(userId);
     const totalSkus = ownedInventory.length || productCount;
     const outOfStock = ownedInventory.filter((i) => i.currentStock <= 0).length;
-    const lowStock = ownedInventory.filter(
-      (i) => i.currentStock > 0 && i.currentStock <= i.reorderLevel
-    ).length;
-    const healthy = ownedInventory.filter((i) => i.currentStock > i.reorderLevel).length;
+    const lowStock = ownedInventory.filter((i) => isLowStock(i.currentStock, threshold)).length;
+    const healthy = ownedInventory.filter((i) => i.currentStock > threshold).length;
 
     const inventoryHealth =
       totalSkus === 0 ? 100 : Math.round((healthy / totalSkus) * 100);
@@ -747,11 +788,11 @@ export const dashboardService = {
         this.getKpis(userId, query),
         this.getRevenue(userId, query),
         this.getSales(userId, query),
-        this.getProductInsights(userId),
+        this.getProductInsights(userId, query),
         this.getCustomerInsights(userId, query),
         this.getRecentOrders(userId, { ...query, limit: query.limit || 10 }),
-        this.getActivity(userId, { limit: 15 }),
-        this.getStoreHealth(userId),
+        this.getActivity(userId, { ...query, limit: 15 }),
+        this.getStoreHealth(userId, query),
       ]);
 
     return {

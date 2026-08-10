@@ -18,6 +18,11 @@ export const settingsController = {
     return ApiResponse.success(res, { settings: data }, 'Notification preferences updated');
   }),
 
+  updateInventory: asyncHandler(async (req, res) => {
+    const data = await settingsService.updateInventory(req.user.id, req.body);
+    return ApiResponse.success(res, data, 'Inventory settings updated');
+  }),
+
   billing: asyncHandler(async (req, res) => {
     const data = await settingsService.getBilling(req.user.id);
     return ApiResponse.success(res, data, 'Billing');

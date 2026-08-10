@@ -6,6 +6,7 @@ import { API_BASE_URL } from '@/constants/config';
 import { createProduct, fetchProductById, updateProduct } from '@/features/products/productsSlice';
 import { uploadsService } from '@/services/settingsService';
 import { aiService } from '@/services/aiService';
+import ProductImage from '@/components/ui/ProductImage';
 
 const steps = ['Basic Info', 'Pricing & Stock', 'Media', 'Review'];
 
@@ -746,11 +747,12 @@ const AddProductPage = () => {
       {step === 3 && (
         <div className="glass-panel rounded-xl p-6 space-y-5">
           <h3 className="text-headline-md text-on-background">Review Product</h3>
-          {previewUrl && (
-            <img
-              src={previewUrl}
-              alt=""
-              className="w-28 h-28 object-cover rounded-lg border border-outline-variant/30"
+          {(previewUrl || form.image) && (
+            <ProductImage
+              src={previewUrl || form.image}
+              name={form.name}
+              size="review"
+              lazy={false}
             />
           )}
           <div className="divide-y divide-outline-variant/10">

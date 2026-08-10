@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { audiencesService } from '@/services/audiencesService';
 import { PAGE_SIZE } from '@/components/ui/Pagination';
+import { shopIdQueryParam } from '@/utils/shopQuery';
 
 const initialState = {
   items: [],
@@ -19,11 +20,13 @@ export const fetchAudiencesList = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { filters, pagination } = getState().audiences;
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
       return await audiencesService.list({
         page: pagination.page,
         limit: pagination.limit,
         search: filters.search || undefined,
         status: filters.status !== 'all' ? filters.status : undefined,
+        shopId,
       });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load audiences.');
@@ -33,9 +36,10 @@ export const fetchAudiencesList = createAsyncThunk(
 
 export const fetchAudienceAnalytics = createAsyncThunk(
   'audiences/analytics',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return await audiencesService.analytics();
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await audiencesService.analytics({ shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load audience analytics.');
     }

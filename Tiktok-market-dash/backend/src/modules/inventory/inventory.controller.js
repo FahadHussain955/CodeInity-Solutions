@@ -9,12 +9,12 @@ export const inventoryController = {
   }),
 
   analytics: asyncHandler(async (req, res) => {
-    const data = await inventoryService.analytics(req.user.id);
+    const data = await inventoryService.analytics(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Inventory analytics');
   }),
 
   dashboard: asyncHandler(async (req, res) => {
-    const data = await inventoryService.dashboardSummary(req.user.id);
+    const data = await inventoryService.dashboardSummary(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Inventory dashboard');
   }),
 

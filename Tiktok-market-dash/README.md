@@ -20,7 +20,8 @@ cp .env.example .env   # VITE_API_URL=http://localhost:5000/api/v1
 npm install && npm run dev
 ```
 
-Open `http://localhost:5173` · Demo (after seed): `demo@nexora.com` / `Demo1234!`
+Open `http://localhost:5173`  
+After seed: demo `demo@nexora.com` / `Demo1234!` · admin `admin@nexora.com` / `Admin1234!`
 
 ## Stack
 

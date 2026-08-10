@@ -116,6 +116,11 @@ model StoreIntegration {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   syncLogs     SyncLog[]
+  products     Product[]
+  customers    Customer[]
+  orders       Order[]
+  campaigns    Campaign[]
+  audiences    Audience[]
 
   @@unique([userId, provider, storeUrl])
   @@index([userId, isConnected])
@@ -143,27 +148,31 @@ model SyncLog {
 }
 
 model Product {
-  id             String          @id @default(cuid())
-  userId         String?
-  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  name           String
-  sku            String          @unique
-  category       String
-  price          Decimal         @db.Decimal(12, 2)
-  costPrice      Decimal?        @db.Decimal(12, 2)
-  image          String?
-  description    String?
-  status         ProductStatus   @default(ACTIVE)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  inventory      Inventory?
-  orderItems     OrderItem[]
-  stockMovements StockMovement[]
+  id                 String            @id @default(cuid())
+  userId             String?
+  user               User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  storeIntegrationId String?
+  storeIntegration   StoreIntegration? @relation(fields: [storeIntegrationId], references: [id], onDelete: SetNull)
+  name               String
+  sku                String
+  category           String
+  price              Decimal           @db.Decimal(12, 2)
+  costPrice          Decimal?          @db.Decimal(12, 2)
+  image              String?
+  description        String?
+  status             ProductStatus     @default(ACTIVE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  inventory          Inventory?
+  orderItems         OrderItem[]
+  stockMovements     StockMovement[]
 
+  @@unique([storeIntegrationId, sku])
   @@index([name])
   @@index([sku])
   @@index([status])
   @@index([userId])
+  @@index([storeIntegrationId])
   @@map("products")
 }
 
@@ -207,30 +216,33 @@ model StockMovement {
 }
 
 model Customer {
-  id                String         @id @default(cuid())
-  userId            String
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fullName          String
-  email             String
-  phone             String?
-  profileImage      String?
-  address           String?
-  city              String?
-  state             String?
-  postalCode        String?
-  country           String?        @default("Pakistan")
-  totalOrders       Int            @default(0)
-  totalSpent        Decimal        @default(0) @db.Decimal(14, 2)
-  averageOrderValue Decimal        @default(0) @db.Decimal(12, 2)
-  lastOrderDate     DateTime?
-  status            CustomerStatus @default(ACTIVE)
-  tags              String[]       @default([])
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  orders            Order[]
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeIntegrationId String?
+  storeIntegration   StoreIntegration? @relation(fields: [storeIntegrationId], references: [id], onDelete: SetNull)
+  fullName           String
+  email              String
+  phone              String?
+  profileImage       String?
+  address            String?
+  city               String?
+  state              String?
+  postalCode         String?
+  country            String?           @default("Pakistan")
+  totalOrders        Int               @default(0)
+  totalSpent         Decimal           @default(0) @db.Decimal(14, 2)
+  averageOrderValue  Decimal           @default(0) @db.Decimal(12, 2)
+  lastOrderDate      DateTime?
+  status             CustomerStatus    @default(ACTIVE)
+  tags               String[]          @default([])
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  orders             Order[]
 
-  @@unique([userId, email])
+  @@unique([userId, storeIntegrationId, email])
   @@index([userId])
+  @@index([storeIntegrationId])
   @@index([fullName])
   @@index([email])
   @@index([phone])
@@ -242,22 +254,25 @@ model Customer {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderNumber   String      @unique
-  customerId    String
-  customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  status        OrderStatus @default(PENDING)
-  paymentMethod String?
-  totalAmount   Decimal     @db.Decimal(14, 2)
-  notes         String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  items         OrderItem[]
-  refunds       Refund[]
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeIntegrationId String?
+  storeIntegration   StoreIntegration? @relation(fields: [storeIntegrationId], references: [id], onDelete: SetNull)
+  orderNumber        String            @unique
+  customerId         String
+  customer           Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  status             OrderStatus       @default(PENDING)
+  paymentMethod      String?
+  totalAmount        Decimal           @db.Decimal(14, 2)
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  items              OrderItem[]
+  refunds            Refund[]
 
   @@index([userId])
+  @@index([storeIntegrationId])
   @@index([customerId])
   @@index([createdAt])
   @@index([status])
@@ -340,35 +355,38 @@ enum AudienceType {
 }
 
 model Campaign {
-  id           String             @id @default(cuid())
-  userId       String
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code         String             @unique
-  campaignName String
-  objective    CampaignObjective  @default(CONVERSIONS)
-  platform     String             @default("TikTok")
-  status       CampaignStatus     @default(DRAFT)
-  budget       Decimal            @db.Decimal(14, 2)
-  dailyBudget  Decimal?           @db.Decimal(14, 2)
-  totalSpend   Decimal            @default(0) @db.Decimal(14, 2)
-  impressions  Int                @default(0)
-  clicks       Int                @default(0)
-  ctr          Decimal            @default(0) @db.Decimal(8, 4)
-  cpc          Decimal            @default(0) @db.Decimal(10, 4)
-  cpm          Decimal            @default(0) @db.Decimal(10, 4)
-  conversions  Int                @default(0)
-  revenue      Decimal            @default(0) @db.Decimal(14, 2)
-  roas         Decimal            @default(0) @db.Decimal(10, 2)
-  startDate    DateTime?
-  endDate      DateTime?
-  adGroups     Int                @default(0)
-  targeting    Json?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  creatives    AdCreative[]
-  audiences    CampaignAudience[]
+  id                 String             @id @default(cuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeIntegrationId String?
+  storeIntegration   StoreIntegration?  @relation(fields: [storeIntegrationId], references: [id], onDelete: SetNull)
+  code               String             @unique
+  campaignName       String
+  objective          CampaignObjective  @default(CONVERSIONS)
+  platform           String             @default("TikTok")
+  status             CampaignStatus     @default(DRAFT)
+  budget             Decimal            @db.Decimal(14, 2)
+  dailyBudget        Decimal?           @db.Decimal(14, 2)
+  totalSpend         Decimal            @default(0) @db.Decimal(14, 2)
+  impressions        Int                @default(0)
+  clicks             Int                @default(0)
+  ctr                Decimal            @default(0) @db.Decimal(8, 4)
+  cpc                Decimal            @default(0) @db.Decimal(10, 4)
+  cpm                Decimal            @default(0) @db.Decimal(10, 4)
+  conversions        Int                @default(0)
+  revenue            Decimal            @default(0) @db.Decimal(14, 2)
+  roas               Decimal            @default(0) @db.Decimal(10, 2)
+  startDate          DateTime?
+  endDate            DateTime?
+  adGroups           Int                @default(0)
+  targeting          Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  creatives          AdCreative[]
+  audiences          CampaignAudience[]
 
   @@index([userId])
+  @@index([storeIntegrationId])
   @@index([userId, createdAt])
   @@index([status])
   @@index([platform])
@@ -406,27 +424,30 @@ model AdCreative {
 }
 
 model Audience {
-  id             String         @id @default(cuid())
-  userId         String
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code           String         @unique
-  audienceName   String
-  type           AudienceType   @default(INTEREST)
-  gender         String?
-  ageRange       String?
-  countries      String[]       @default([])
-  interests      String[]       @default([])
-  estimatedReach String?
-  reachMin       Int?
-  reachMax       Int?
-  status         AudienceStatus @default(READY)
-  source         String?
-  matchScore     Int            @default(0)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  campaigns      CampaignAudience[]
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeIntegrationId String?
+  storeIntegration   StoreIntegration? @relation(fields: [storeIntegrationId], references: [id], onDelete: SetNull)
+  code               String            @unique
+  audienceName       String
+  type               AudienceType      @default(INTEREST)
+  gender             String?
+  ageRange           String?
+  countries          String[]          @default([])
+  interests          String[]          @default([])
+  estimatedReach     String?
+  reachMin           Int?
+  reachMax           Int?
+  status             AudienceStatus    @default(READY)
+  source             String?
+  matchScore         Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  campaigns          CampaignAudience[]
 
   @@index([userId])
+  @@index([storeIntegrationId])
   @@index([userId, createdAt])
   @@index([audienceName])
   @@index([status])
@@ -489,6 +510,7 @@ model UserSettings {
   description           String?
   emailNotifications    Boolean  @default(true)
   lowStockAlerts        Boolean  @default(true)
+  lowStockThreshold     Int      @default(10)
   orderNotifications    Boolean  @default(true)
   campaignNotifications Boolean  @default(true)
   aiNotifications       Boolean  @default(true)

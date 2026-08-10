@@ -10,7 +10,7 @@ export const campaignsController = {
   }),
 
   analytics: asyncHandler(async (req, res) => {
-    const data = await campaignsService.analytics(req.user.id);
+    const data = await campaignsService.analytics(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Campaign analytics');
   }),
 

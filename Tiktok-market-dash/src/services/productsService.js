@@ -21,6 +21,17 @@ export const productsService = {
     }
   },
 
+  async categories(params = {}) {
+    try {
+      const response = await axiosPrivate.get('/products/categories', { params });
+      return unwrapApiData(response);
+    } catch (error) {
+      throw new ProductsApiError(getApiErrorMessage(error, 'Unable to load categories.'), {
+        status: error?.response?.status || 400,
+      });
+    }
+  },
+
   async getById(id) {
     try {
       const response = await axiosPrivate.get(`/products/${id}`);

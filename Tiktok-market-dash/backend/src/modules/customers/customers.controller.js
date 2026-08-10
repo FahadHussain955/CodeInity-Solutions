@@ -10,12 +10,12 @@ export const customersController = {
   }),
 
   analytics: asyncHandler(async (req, res) => {
-    const data = await customersService.analytics(req.user.id);
+    const data = await customersService.analytics(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Customer analytics');
   }),
 
   dashboard: asyncHandler(async (req, res) => {
-    const data = await customersService.dashboardSummary(req.user.id);
+    const data = await customersService.dashboardSummary(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Customer dashboard');
   }),
 

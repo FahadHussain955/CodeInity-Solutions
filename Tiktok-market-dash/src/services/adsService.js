@@ -21,9 +21,9 @@ export const adsService = {
     }
   },
 
-  async analytics() {
+  async analytics(params = {}) {
     try {
-      const response = await axiosPrivate.get('/ads/analytics');
+      const response = await axiosPrivate.get('/ads/analytics', { params });
       return unwrap(response);
     } catch (error) {
       throw new AdsApiError(getErrorMessage(error, 'Unable to load ad analytics.'), {

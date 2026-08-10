@@ -4,6 +4,7 @@ import {
   connectIntegration,
   disconnectIntegration,
   fetchIntegrationStatus,
+  resetIntegrations,
   syncIntegration,
 } from '@/features/integrations/integrationsSlice';
 
@@ -18,7 +19,10 @@ export const StoreConnectionProvider = ({ children }) => {
   const [activePlatform, setActivePlatform] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      dispatch(resetIntegrations());
+      return;
+    }
     dispatch(fetchIntegrationStatus());
   }, [dispatch, isAuthenticated]);
 
@@ -62,7 +66,7 @@ export const StoreConnectionProvider = ({ children }) => {
         throw new Error(result.payload || 'Unable to connect store.');
       }
       await dispatch(fetchIntegrationStatus());
-      return result.payload;
+      return result.payload?.store || result.payload;
     },
     [dispatch, activePlatform]
   );
@@ -99,6 +103,11 @@ export const StoreConnectionProvider = ({ children }) => {
     [stores]
   );
 
+  const getStoresForPlatform = useCallback(
+    (platformName) => stores.filter((s) => s.platform === platformName),
+    [stores]
+  );
+
   const value = useMemo(
     () => ({
       isConnected,
@@ -113,6 +122,7 @@ export const StoreConnectionProvider = ({ children }) => {
       disconnectStore,
       syncStore,
       getStoreForPlatform,
+      getStoresForPlatform,
       refreshStores: () => dispatch(fetchIntegrationStatus()),
     }),
     [
@@ -128,6 +138,7 @@ export const StoreConnectionProvider = ({ children }) => {
       disconnectStore,
       syncStore,
       getStoreForPlatform,
+      getStoresForPlatform,
       dispatch,
     ]
   );

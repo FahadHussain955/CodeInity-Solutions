@@ -374,14 +374,15 @@
 }
 
 /* ──────────────────────────────────────────
-   Spacing helpers (sidebar-width, container-margin, h-18)
+   Spacing helpers (sidebar-width, container-margin, navbar height)
 ────────────────────────────────────────── */
 .w-sidebar-width  { width: 260px; }
 .ml-sidebar-width { margin-left: 260px; }
 .p-container-margin { padding: 32px; }
 .px-container-margin { padding-left: 32px; padding-right: 32px; }
-.h-18 { height: 4.5rem; }
-.mt-18 { margin-top: 4.5rem; }
+/* Compact SaaS chrome — previously 4.5rem / 72px */
+.h-18 { height: 3.5rem; }
+.mt-18 { margin-top: 3.5rem; }
 .w-sidebar-collapsed { width: 80px; }
 
 /* ──────────────────────────────────────────
@@ -648,6 +649,25 @@
 /* group-focus-within text color */
 .group:focus-within .group-focus-within\:text-primary { color: var(--color-primary); }
 .group:hover .group-hover\:text-primary               { color: var(--color-primary); }
+
+/* AI Insights — theme-aware contrast (primary is low-contrast on dark navbar) */
+.btn-ai-insights {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, transparent);
+  background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  color: var(--color-primary);
+}
+.btn-ai-insights:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+.dark .btn-ai-insights {
+  border-color: color-mix(in srgb, var(--color-inverse-primary) 45%, transparent);
+  background-color: color-mix(in srgb, var(--color-primary) 28%, transparent);
+  color: var(--color-inverse-primary);
+}
+.dark .btn-ai-insights:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  color: #e1e0ff;
+}
 .group:hover .group-hover\:text-on-surface            { color: var(--color-on-surface); }
 
 /* ──────────────────────────────────────────

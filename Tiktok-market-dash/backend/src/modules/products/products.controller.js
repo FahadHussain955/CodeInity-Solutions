@@ -8,6 +8,11 @@ export const productsController = {
     return ApiResponse.success(res, data, 'Products list');
   }),
 
+  categories: asyncHandler(async (req, res) => {
+    const data = await productsService.categories(req.user.id, req.query);
+    return ApiResponse.success(res, data, 'Product categories');
+  }),
+
   rankings: asyncHandler(async (req, res) => {
     const data = await productsService.rankings(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Product rankings');

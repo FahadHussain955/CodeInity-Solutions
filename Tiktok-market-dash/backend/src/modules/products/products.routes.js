@@ -5,6 +5,7 @@ import {
   createProductValidators,
   performanceValidators,
   productIdValidators,
+  productsCategoriesValidators,
   productsListValidators,
   rankingsValidators,
   updateProductValidators,
@@ -17,6 +18,12 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', productsListValidators, validateRequest, productsController.list);
+router.get(
+  '/categories',
+  productsCategoriesValidators,
+  validateRequest,
+  productsController.categories
+);
 router.get('/rankings', rankingsValidators, validateRequest, productsController.rankings);
 router.get(
   '/performance',

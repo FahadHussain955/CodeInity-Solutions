@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ROUTES } from '@/constants/routes';
 import StatusBadge from '@/components/ui/StatusBadge';
+import ProductImage from '@/components/ui/ProductImage';
 import {
   clearSelectedProduct,
   fetchProductById,
@@ -311,11 +312,16 @@ const ProductDetailPage = () => {
               ))}
             </div>
           </div>
-          {product.image && (
-            <div className="glass-panel rounded-xl overflow-hidden">
-              <img src={product.image} alt={product.name} className="w-full aspect-square object-cover" />
-            </div>
-          )}
+          <div className="glass-panel rounded-xl overflow-hidden p-3 sm:p-4">
+            <ProductImage
+              src={product.image}
+              name={product.name}
+              size="lg"
+              rounded="rounded-lg"
+              lazy={false}
+              className="mx-auto border-0"
+            />
+          </div>
         </div>
       </div>
     </div>

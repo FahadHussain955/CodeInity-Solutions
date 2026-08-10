@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
+import NoShopGate from '@/components/ui/NoShopGate';
 import {
   clearCustomerNotice,
   createCustomer,
@@ -26,6 +27,7 @@ const CustomersPage = () => {
     notice,
     actionStatus,
   } = useSelector((state) => state.customers);
+  const selectedShopId = useSelector((state) => state.integrations?.selectedShopId);
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', city: '' });
@@ -33,7 +35,7 @@ const CustomersPage = () => {
   useEffect(() => {
     dispatch(fetchCustomersList());
     dispatch(fetchCustomerAnalytics());
-  }, [dispatch, filters.search, filters.filter, filters.sort, pagination.page]);
+  }, [dispatch, filters.search, filters.filter, filters.sort, pagination.page, selectedShopId]);
 
   useEffect(() => {
     if (!notice && !error) return undefined;
@@ -64,7 +66,10 @@ const CustomersPage = () => {
           </div>
           <h2 className="text-display-lg-mobile md:text-display-lg text-on-background">Customers</h2>
         </div>
-        <div className="flex items-center gap-3">
+      </div>
+
+      <NoShopGate description="Connect your TikTok Shop to start managing customers.">
+      <div className="flex items-center justify-end gap-3">
           <button className="toolbar-control flex items-center gap-2 bg-surface text-on-surface border border-outline-variant/50 px-4 rounded-lg text-body-sm font-medium hover:bg-surface-variant/30 transition-colors shadow-sm">
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export
@@ -77,7 +82,6 @@ const CustomersPage = () => {
             <span className="material-symbols-outlined text-[18px]">person_add</span>
             Add Customer
           </button>
-        </div>
       </div>
 
       {(notice || error) && (
@@ -236,6 +240,7 @@ const CustomersPage = () => {
           </div>
         </div>
       )}
+      </NoShopGate>
     </div>
   );
 };

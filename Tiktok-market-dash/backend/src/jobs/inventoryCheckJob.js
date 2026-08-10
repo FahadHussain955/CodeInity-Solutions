@@ -1,49 +1,55 @@
 import { prisma } from '../lib/prisma.js';
-import { createNotification } from '../utils/notifications.js';
 import { logger } from '../utils/logger.js';
+import {
+  evaluateLowStockTransition,
+  getLowStockThreshold,
+  isLowStock,
+} from '../utils/lowStock.js';
 
 /**
- * Find low-stock inventory items and notify users with lowStockAlerts enabled.
+ * Tenant-scoped low-stock scan for all users with settings.
+ * Dedupes via evaluateLowStockTransition (unread low_stock meta per product).
+ * Not gated by the legacy lowStockAlerts boolean — threshold alone controls detection.
  */
 export const runInventoryCheckJob = async () => {
-  const rows = await prisma.inventory.findMany({
-    include: { product: { select: { id: true, name: true, sku: true } } },
-    take: 500,
-  });
-
-  const items = rows.filter((row) => row.currentStock <= row.reorderLevel);
-
-  if (items.length === 0) {
-    logger.info('inventoryCheckJob: no low-stock items');
-    return { notified: 0, items: 0 };
-  }
-
   const settingsUsers = await prisma.userSettings.findMany({
-    where: { lowStockAlerts: true },
-    select: { userId: true },
+    select: { userId: true, lowStockThreshold: true },
   });
 
   let notified = 0;
-  for (const { userId } of settingsUsers) {
-    for (const item of items.slice(0, 20)) {
-      const created = await createNotification({
+  let checked = 0;
+
+  for (const { userId, lowStockThreshold } of settingsUsers) {
+    const threshold = await getLowStockThreshold(userId).catch(() => lowStockThreshold || 10);
+    const rows = await prisma.inventory.findMany({
+      where: { product: { userId } },
+      include: {
+        product: { select: { id: true, name: true, sku: true, userId: true } },
+      },
+      take: 500,
+    });
+
+    checked += rows.length;
+
+    for (const item of rows) {
+      if (!isLowStock(item.currentStock, threshold)) continue;
+
+      // Force "enter low stock" check; dedupe prevents spam if unread already exists.
+      const result = await evaluateLowStockTransition({
         userId,
-        type: 'INVENTORY',
-        title: 'Low stock alert',
-        message: `${item.product?.name || 'Product'} (${item.product?.sku || 'SKU'}) is at ${item.currentStock} units (reorder at ${item.reorderLevel}).`,
-        link: '/inventory',
-        meta: {
-          productId: item.productId,
-          currentStock: item.currentStock,
-          reorderLevel: item.reorderLevel,
-        },
+        productId: item.productId,
+        productName: item.product?.name,
+        sku: item.product?.sku,
+        previousStock: threshold + 1,
+        newStock: item.currentStock,
+        threshold,
       });
-      if (created) notified += 1;
+      if (result.action === 'created') notified += 1;
     }
   }
 
-  logger.info(`inventoryCheckJob: notified=${notified} lowStockItems=${items.length}`);
-  return { notified, items: items.length };
+  logger.info(`inventoryCheckJob: notified=${notified} checked=${checked} users=${settingsUsers.length}`);
+  return { notified, checked, users: settingsUsers.length };
 };
 
 export default runInventoryCheckJob;

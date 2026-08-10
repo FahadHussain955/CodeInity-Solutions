@@ -10,7 +10,7 @@ export const adsController = {
   }),
 
   analytics: asyncHandler(async (req, res) => {
-    const data = await adsService.analytics(req.user.id);
+    const data = await adsService.analytics(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Ads analytics');
   }),
 

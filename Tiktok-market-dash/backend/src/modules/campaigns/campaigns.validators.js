@@ -16,12 +16,27 @@ export const campaignIdValidators = [
 ];
 
 export const createCampaignValidators = [
-  body('name').optional().isString().trim().isLength({ min: 2, max: 200 }),
-  body('campaignName').optional().isString().trim().isLength({ min: 2, max: 200 }),
+  body('name')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 2, max: 200 }),
+  body('campaignName')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 2, max: 200 }),
+  body().custom((_, { req }) => {
+    const name = String(req.body?.name || req.body?.campaignName || '').trim();
+    if (name.length < 2) {
+      throw new Error('Campaign name is required (min 2 characters).');
+    }
+    return true;
+  }),
   body('objective').optional().isString(),
   body('status').optional().isString(),
   body('platform').optional().isString().trim().isLength({ max: 80 }),
-  body('budget').optional().isFloat({ min: 0 }),
+  body('budget').optional().isFloat({ min: 0 }).withMessage('Budget must be 0 or greater'),
   body('dailyBudget').optional({ nullable: true }).isFloat({ min: 0 }),
   body('startDate').optional({ nullable: true }).isISO8601().toDate(),
   body('endDate').optional({ nullable: true }).isISO8601().toDate(),

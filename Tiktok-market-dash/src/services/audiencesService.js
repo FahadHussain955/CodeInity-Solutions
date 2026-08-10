@@ -21,9 +21,9 @@ export const audiencesService = {
     }
   },
 
-  async analytics() {
+  async analytics(params = {}) {
     try {
-      const response = await axiosPrivate.get('/audiences/analytics');
+      const response = await axiosPrivate.get('/audiences/analytics', { params });
       return unwrap(response);
     } catch (error) {
       throw new AudiencesApiError(getErrorMessage(error, 'Unable to load audience analytics.'), {

@@ -17,6 +17,12 @@ import {
   parsePerformanceRange,
   resolveUnitCost,
 } from '../../utils/productPerformance.js';
+import {
+  resolveShopFilter,
+  resolveWritableShopId,
+  shopWhere,
+} from '../../utils/shopScope.js';
+import { getLowStockThreshold } from '../../utils/lowStock.js';
 
 const STATUS_MAP = {
   ACTIVE: 'Active',
@@ -28,42 +34,122 @@ const ownershipWhere = (userId) => ({
   OR: [{ userId }, { userId: null }],
 });
 
+const parseOptionalPrice = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    throw ApiError.badRequest('Price filters must be non-negative numbers.');
+  }
+  return n;
+};
+
+const normalizeStockStatus = (value) => {
+  const raw = String(value || 'all').trim().toLowerCase();
+  if (!raw || raw === 'all') return null;
+  if (!['in_stock', 'low_stock', 'out_of_stock'].includes(raw)) {
+    throw ApiError.badRequest('Invalid stockStatus. Use in_stock, low_stock, or out_of_stock.');
+  }
+  return raw;
+};
+
+const buildStockWhere = (stockStatus, threshold) => {
+  if (!stockStatus) return {};
+  const limit = Number(threshold) || 10;
+
+  if (stockStatus === 'out_of_stock') {
+    return {
+      OR: [{ inventory: { is: null } }, { inventory: { currentStock: { lte: 0 } } }],
+    };
+  }
+
+  if (stockStatus === 'low_stock') {
+    return {
+      inventory: {
+        is: {
+          currentStock: { gt: 0, lte: limit },
+        },
+      },
+    };
+  }
+
+  return {
+    inventory: {
+      is: {
+        currentStock: { gt: limit },
+      },
+    },
+  };
+};
+
+const buildOrderBy = (query = {}) => {
+  const sortBy = String(query.sortBy || query.sort || 'updated').toLowerCase();
+  const sortOrder = String(query.sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+
+  switch (sortBy) {
+    case 'name':
+      return { name: sortOrder };
+    case 'price':
+      return { price: sortOrder };
+    case 'sku':
+      return { sku: sortOrder };
+    case 'stock':
+      return { inventory: { currentStock: sortOrder } };
+    case 'created':
+      return { createdAt: sortOrder };
+    case 'updated':
+    default:
+      return { updatedAt: sortOrder };
+  }
+};
+
 const assertProductAccess = async (productId, userId) => {
   const product = await prisma.product.findFirst({
     where: { id: productId, ...ownershipWhere(userId) },
     include: { inventory: true },
   });
   if (!product) throw ApiError.notFound('Product not found.');
-  // Strict ownership: if product is owned by another user, hide it
   if (product.userId && product.userId !== userId) {
     throw ApiError.notFound('Product not found.');
   }
   return product;
 };
 
-const mapProduct = (p, perf = null) => ({
-  id: p.id,
-  name: p.name,
-  sku: p.sku,
-  category: p.category,
-  price: toNumber(p.price),
-  priceFormatted: formatMoney(p.price),
-  costPrice: p.costPrice == null ? null : toNumber(p.costPrice),
-  costPriceFormatted: p.costPrice == null ? '—' : formatMoney(p.costPrice),
-  image: p.image,
-  description: p.description,
-  status: STATUS_MAP[p.status] || p.status,
-  statusRaw: p.status,
-  stock: p.inventory?.currentStock ?? null,
-  reorderLevel: p.inventory?.reorderLevel ?? null,
-  warehouse: p.inventory?.warehouse ?? null,
-  updatedAt: p.updatedAt,
-  updatedLabel: relativeDaysAgo(p.updatedAt),
-  createdAt: p.createdAt,
-  joined: formatDate(p.createdAt),
-  aiOptimized: false,
-  performance: perf,
-});
+const mapProduct = (p, perf = null, threshold = 10) => {
+  const stock = p.inventory?.currentStock ?? null;
+  let stockStatus = null;
+  if (stock === null) stockStatus = 'unknown';
+  else if (stock <= 0) stockStatus = 'out_of_stock';
+  else if (stock <= threshold) stockStatus = 'low_stock';
+  else stockStatus = 'in_stock';
+
+  return {
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    category: p.category,
+    price: toNumber(p.price),
+    priceFormatted: formatMoney(p.price),
+    costPrice: p.costPrice == null ? null : toNumber(p.costPrice),
+    costPriceFormatted: p.costPrice == null ? '—' : formatMoney(p.costPrice),
+    image: p.image,
+    description: p.description,
+    status: STATUS_MAP[p.status] || p.status,
+    statusRaw: p.status,
+    storeIntegrationId: p.storeIntegrationId || null,
+    shopId: p.storeIntegrationId || null,
+    stock,
+    stockStatus,
+    lowStockThreshold: threshold,
+    reorderLevel: p.inventory?.reorderLevel ?? null,
+    warehouse: p.inventory?.warehouse ?? null,
+    updatedAt: p.updatedAt,
+    updatedLabel: relativeDaysAgo(p.updatedAt),
+    createdAt: p.createdAt,
+    joined: formatDate(p.createdAt),
+    aiOptimized: false,
+    performance: perf,
+  };
+};
 
 const salesItemWhere = (productIds, start, end) => ({
   productId: Array.isArray(productIds) ? { in: productIds } : productIds,
@@ -109,18 +195,42 @@ export const productsService = {
     const { page, limit, skip } = parsePagination(query);
     const search = String(query.search || '').trim();
     const status = String(query.status || query.filter || 'all').toUpperCase();
+    const category = String(query.category || '').trim();
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const minPrice = parseOptionalPrice(query.minPrice);
+    const maxPrice = parseOptionalPrice(query.maxPrice);
+    if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
+      throw ApiError.badRequest('minPrice cannot be greater than maxPrice.');
+    }
+
+    const threshold = await getLowStockThreshold(userId);
+    const stockStatus = normalizeStockStatus(query.stockStatus);
 
     const where = {
       AND: [
         ownershipWhere(userId),
+        shopWhere(shopId),
         status !== 'ALL' && ['ACTIVE', 'DRAFT', 'ARCHIVED'].includes(status)
           ? { status }
           : {},
+        category && category.toLowerCase() !== 'all'
+          ? { category: { equals: category, mode: 'insensitive' } }
+          : {},
+        minPrice != null || maxPrice != null
+          ? {
+              price: {
+                ...(minPrice != null ? { gte: minPrice } : {}),
+                ...(maxPrice != null ? { lte: maxPrice } : {}),
+              },
+            }
+          : {},
+        buildStockWhere(stockStatus, threshold),
         search
           ? {
               OR: [
                 { name: { contains: search, mode: 'insensitive' } },
                 { sku: { contains: search, mode: 'insensitive' } },
+                { id: { equals: search } },
                 { category: { contains: search, mode: 'insensitive' } },
               ],
             }
@@ -133,7 +243,7 @@ export const productsService = {
       prisma.product.findMany({
         where,
         include: { inventory: true },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: buildOrderBy(query),
         skip,
         take: limit,
       }),
@@ -153,12 +263,12 @@ export const productsService = {
         fallbackUnitCost: resolveUnitCost(p),
         refundsByOrderId,
       });
-      return mapProduct(p, perf);
+      return mapProduct(p, perf, threshold);
     });
 
     const counts = await prisma.product.groupBy({
       by: ['status'],
-      where: ownershipWhere(userId),
+      where: { AND: [ownershipWhere(userId), shopWhere(shopId)] },
       _count: { _all: true },
     });
     const countMap = { all: 0, active: 0, draft: 0, archived: 0 };
@@ -174,12 +284,39 @@ export const productsService = {
       ...paginatedResult({ items: mapped, total, page, limit }),
       counts: countMap,
       range: rangeKey,
+      lowStockThreshold: threshold,
+      filters: {
+        search: search || null,
+        category: category && category.toLowerCase() !== 'all' ? category : null,
+        minPrice,
+        maxPrice,
+        stockStatus: stockStatus || 'all',
+        status: status === 'ALL' ? 'all' : status.toLowerCase(),
+        shopId,
+      },
+    };
+  },
+
+  async categories(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const rows = await prisma.product.findMany({
+      where: {
+        AND: [ownershipWhere(userId), shopWhere(shopId)],
+      },
+      distinct: ['category'],
+      select: { category: true },
+      orderBy: { category: 'asc' },
+    });
+    return {
+      items: rows.map((r) => r.category).filter(Boolean),
+      shopId,
     };
   },
 
   async getById(userId, id) {
     const product = await assertProductAccess(id, userId);
-    return mapProduct(product);
+    const threshold = await getLowStockThreshold(userId);
+    return mapProduct(product, null, threshold);
   },
 
   async create(userId, payload = {}) {
@@ -204,10 +341,16 @@ export const productsService = {
       Number.parseInt(payload.reorderPoint ?? payload.reorderLevel ?? 10, 10) || 10
     );
 
+    const storeIntegrationId = await resolveWritableShopId(
+      userId,
+      payload.shopId || payload.storeIntegrationId
+    );
+
     try {
       const product = await prisma.product.create({
         data: {
           userId,
+          storeIntegrationId,
           name,
           sku,
           category: String(payload.category || 'Uncategorized').trim(),
@@ -367,6 +510,7 @@ export const productsService = {
 
   async getBatchPerformance(userId, query = {}) {
     const { start, end, rangeKey } = parsePerformanceRange(query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const ids = String(query.ids || '')
       .split(',')
       .map((s) => s.trim())
@@ -375,7 +519,7 @@ export const productsService = {
     const allowed = await prisma.product.findMany({
       where: {
         ...(ids.length ? { id: { in: ids } } : {}),
-        OR: [{ userId }, { userId: null }],
+        AND: [ownershipWhere(userId), shopWhere(shopId)],
       },
       select: { id: true, userId: true, costPrice: true, name: true, sku: true },
       take: ids.length ? Math.min(ids.length, 200) : 100,
@@ -407,11 +551,12 @@ export const productsService = {
 
   async rankings(userId, query = {}) {
     const { start, end, rangeKey } = parsePerformanceRange(query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const metric = String(query.metric || 'units').toLowerCase();
     const limit = Math.min(20, Math.max(1, Number.parseInt(query.limit, 10) || 5));
 
     const products = await prisma.product.findMany({
-      where: ownershipWhere(userId),
+      where: { AND: [ownershipWhere(userId), shopWhere(shopId)] },
       select: { id: true, userId: true, name: true, sku: true, costPrice: true, image: true },
     });
     const allowed = products.filter((p) => !p.userId || p.userId === userId);

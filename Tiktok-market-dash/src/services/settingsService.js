@@ -29,6 +29,15 @@ export const settingsService = {
     }
   },
 
+  async updateInventory(payload) {
+    try {
+      const response = await axiosPrivate.patch('/settings/inventory', payload);
+      return unwrapApiData(response);
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'Unable to save inventory settings.'));
+    }
+  },
+
   async billing() {
     try {
       const response = await axiosPrivate.get('/settings/billing');

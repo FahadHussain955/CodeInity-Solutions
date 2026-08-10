@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { dashboardService } from '@/services/dashboardService';
+import { shopIdQueryParam } from '@/utils/shopQuery';
 
 const initialState = {
   overview: null,
@@ -19,9 +20,10 @@ const initialState = {
 
 export const fetchDashboardOverview = createAsyncThunk(
   'dashboard/overview',
-  async (range, { rejectWithValue }) => {
+  async (range, { getState, rejectWithValue }) => {
     try {
-      return await dashboardService.overview(range || {});
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await dashboardService.overview({ ...(range || {}), shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load dashboard.');
     }
@@ -30,9 +32,10 @@ export const fetchDashboardOverview = createAsyncThunk(
 
 export const fetchDashboardKpis = createAsyncThunk(
   'dashboard/kpis',
-  async (range, { rejectWithValue }) => {
+  async (range, { getState, rejectWithValue }) => {
     try {
-      return await dashboardService.kpis(range || {});
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await dashboardService.kpis({ ...(range || {}), shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load KPIs.');
     }

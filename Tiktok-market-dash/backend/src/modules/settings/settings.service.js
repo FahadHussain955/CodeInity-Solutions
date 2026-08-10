@@ -1,6 +1,11 @@
 import { prisma } from '../../lib/prisma.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { logActivity } from '../../utils/activity.js';
+import {
+  ALLOWED_LOW_STOCK_THRESHOLDS,
+  normalizeLowStockThreshold,
+  recalculateLowStockForUser,
+} from '../../utils/lowStock.js';
 
 const STORE_FIELDS = [
   'storeName',
@@ -17,12 +22,12 @@ const STORE_FIELDS = [
   'description',
 ];
 
-/** Map frontend-friendly pref keys → Prisma UserSettings columns */
+/** Map frontend-friendly pref keys → Prisma UserSettings columns.
+ * lowStockAlerts is intentionally omitted — low-stock in-app alerts follow the
+ * inventory threshold, not a separate notification preference toggle. */
 const PREF_MAP = {
   orders: 'orderNotifications',
   orderNotifications: 'orderNotifications',
-  inventory: 'lowStockAlerts',
-  lowStockAlerts: 'lowStockAlerts',
   customers: 'customerNotifications',
   customerNotifications: 'customerNotifications',
   marketing: 'marketingEmails',
@@ -55,11 +60,13 @@ const mapSettings = (s) => ({
   notifications: {
     email: s.emailNotifications,
     orders: s.orderNotifications,
-    inventory: s.lowStockAlerts,
     customers: s.customerNotifications,
     marketing: s.marketingEmails,
     campaign: s.campaignNotifications,
     ai: s.aiNotifications,
+  },
+  inventory: {
+    lowStockThreshold: s.lowStockThreshold ?? 10,
   },
   billing: {
     planName: s.planName,
@@ -151,6 +158,60 @@ export const settingsService = {
     });
 
     return mapSettings(settings);
+  },
+
+  async updateInventory(userId, payload = {}) {
+    await this.getOrCreate(userId);
+    const source =
+      payload.inventory && typeof payload.inventory === 'object' ? payload.inventory : payload;
+
+    const data = {};
+    if (source.lowStockThreshold !== undefined || source.threshold !== undefined) {
+      const raw = source.lowStockThreshold ?? source.threshold;
+      const threshold = normalizeLowStockThreshold(raw);
+      if (!ALLOWED_LOW_STOCK_THRESHOLDS.includes(threshold) && Number(raw) !== threshold) {
+        // Allow custom positive ints, but prefer known presets; reject invalid numbers
+      }
+      if (!Number.isFinite(Number(raw)) || Number(raw) < 1) {
+        throw ApiError.badRequest('lowStockThreshold must be a positive integer.');
+      }
+      data.lowStockThreshold = threshold;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw ApiError.badRequest('No valid inventory settings provided. Provide lowStockThreshold.');
+    }
+
+    const settings = await prisma.userSettings.update({
+      where: { userId },
+      data,
+    });
+
+    let recalculation = null;
+    if (data.lowStockThreshold != null) {
+      // Keep per-SKU reorderLevel aligned with the account threshold for display consistency.
+      await prisma.inventory.updateMany({
+        where: { product: { userId } },
+        data: { reorderLevel: data.lowStockThreshold },
+      });
+      recalculation = await recalculateLowStockForUser(userId, data.lowStockThreshold);
+    }
+
+    await logActivity({
+      userId,
+      action: 'settings.inventory_updated',
+      entity: 'UserSettings',
+      entityId: settings.id,
+      message: data.lowStockThreshold
+        ? `Low stock threshold set to ${data.lowStockThreshold}`
+        : 'Inventory alert preferences updated',
+      icon: 'inventory_2',
+    });
+
+    return {
+      settings: mapSettings(settings),
+      recalculation,
+    };
   },
 
   async getBilling(userId) {

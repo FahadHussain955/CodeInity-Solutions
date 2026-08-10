@@ -28,7 +28,9 @@ const appReducer = combineReducers({
 });
 
 export const rootReducer = (state, action) => {
-  if (action.type === "auth/logout" || action.type === "auth/logout/pending") {
+  // Wipe app data after intentional logout completes (or sync logout).
+  // Do not wipe on logout/pending — the logout API still needs the access token.
+  if (action.type === "auth/logout" || action.type === "auth/logout/fulfilled") {
     return appReducer(undefined, action);
   }
   return appReducer(state, action);

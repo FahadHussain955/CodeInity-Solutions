@@ -10,7 +10,7 @@ export const audiencesController = {
   }),
 
   analytics: asyncHandler(async (req, res) => {
-    const data = await audiencesService.analytics(req.user.id);
+    const data = await audiencesService.analytics(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Audience analytics');
   }),
 

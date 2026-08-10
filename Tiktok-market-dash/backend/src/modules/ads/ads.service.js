@@ -6,6 +6,7 @@ import {
   parsePagination,
   toNumber,
 } from '../../utils/queryHelpers.js';
+import { resolveShopFilter, shopWhere } from '../../utils/shopScope.js';
 
 const REVIEW_LABEL = {
   ACTIVE: 'Active',
@@ -71,10 +72,12 @@ const adInclude = {
   },
 };
 
-const ownedCampaignFilter = (userId) => ({ campaign: { userId } });
+const ownedCampaignFilter = (userId, shopId = null) => ({
+  campaign: { userId, ...shopWhere(shopId) },
+});
 
-const buildWhere = (userId, query = {}) => {
-  const where = { ...ownedCampaignFilter(userId) };
+const buildWhere = (userId, query = {}, shopId = null) => {
+  const where = { ...ownedCampaignFilter(userId, shopId) };
   const search = String(query.search || '').trim();
   const reviewStatus = parseReviewStatus(query.reviewStatus || query.status || query.filter);
   const campaignId = String(query.campaignId || '').trim();
@@ -134,14 +137,15 @@ const nextAdCode = async () => {
   return `AD-${String(next).padStart(3, '0')}`;
 };
 
-const resolveCampaignId = async (userId, campaignIdOrCode) => {
+const resolveCampaignId = async (userId, campaignIdOrCode, shopId = null) => {
   if (!campaignIdOrCode) return null;
+  const shopFilter = shopWhere(shopId);
   const byId = await prisma.campaign.findFirst({
-    where: { id: campaignIdOrCode, userId },
+    where: { id: campaignIdOrCode, userId, ...shopFilter },
   });
   if (byId) return byId.id;
   const byCode = await prisma.campaign.findFirst({
-    where: { code: campaignIdOrCode, userId },
+    where: { code: campaignIdOrCode, userId, ...shopFilter },
   });
   return byCode?.id || null;
 };
@@ -161,7 +165,8 @@ const findAd = async (userId, idOrCode) => {
 export const adsService = {
   async list(userId, query = {}) {
     const { page, limit, skip } = parsePagination(query);
-    const where = buildWhere(userId, query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const where = buildWhere(userId, query, shopId);
     const orderBy = buildOrderBy(query.sort);
 
     const [total, rows] = await Promise.all([
@@ -193,15 +198,21 @@ export const adsService = {
     const title = String(payload.name || payload.title || '').trim();
     if (!title) throw ApiError.badRequest('Ad title is required.');
 
-    const campaignId = await resolveCampaignId(userId, payload.campaignId);
-    if (!campaignId) throw ApiError.badRequest('Valid campaignId is required.');
+    if (!payload.campaignId) {
+      throw ApiError.badRequest('campaignId is required.');
+    }
+
+    // Optional shopId: campaign must belong to that shop (404 if mismatch).
+    const shopId = await resolveShopFilter(userId, payload.shopId || payload.storeIntegrationId);
+    const campaignId = await resolveCampaignId(userId, payload.campaignId, shopId);
+    // Ownership-scoped lookup: missing or other-tenant campaign → 404 (IDOR-safe).
+    if (!campaignId) throw ApiError.notFound('Campaign not found.');
 
     const code = payload.code || (await nextAdCode());
     const existing = await prisma.adCreative.findUnique({ where: { code } });
     if (existing) throw ApiError.conflict('An ad with this code already exists.');
 
-    const reviewStatus = parseReviewStatus(payload.reviewStatus || payload.status) || 'UNDER_REVIEW';
-
+    // New creatives always start under review; metrics start at zero.
     const ad = await prisma.adCreative.create({
       data: {
         code,
@@ -213,13 +224,13 @@ export const adsService = {
         thumbnail: payload.thumbnail || null,
         caption: payload.caption || null,
         adGroup: payload.adGroup || null,
-        reviewStatus,
-        impressions: Number(payload.impressions) || 0,
-        clicks: Number(payload.clicks) || 0,
-        ctr: toNumber(payload.ctr).toFixed(4),
-        conversions: Number(payload.conversions) || 0,
-        spend: moneyStr(payload.spend ?? 0),
-        roas: moneyStr(payload.roas ?? 0),
+        reviewStatus: 'UNDER_REVIEW',
+        impressions: 0,
+        clicks: 0,
+        ctr: '0.0000',
+        conversions: 0,
+        spend: moneyStr(0),
+        roas: moneyStr(0),
       },
       include: adInclude,
     });
@@ -310,9 +321,10 @@ export const adsService = {
     return mapAd(ad);
   },
 
-  async analytics(userId) {
+  async analytics(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
     const ads = await prisma.adCreative.findMany({
-      where: ownedCampaignFilter(userId),
+      where: ownedCampaignFilter(userId, shopId),
       include: adInclude,
     });
     const total = ads.length;

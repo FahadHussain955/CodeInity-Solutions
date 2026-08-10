@@ -24,7 +24,7 @@ export const dashboardController = {
   }),
 
   productInsights: asyncHandler(async (req, res) => {
-    const data = await dashboardService.getProductInsights(req.user.id);
+    const data = await dashboardService.getProductInsights(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Product insights');
   }),
 
@@ -44,7 +44,7 @@ export const dashboardController = {
   }),
 
   storeHealth: asyncHandler(async (req, res) => {
-    const data = await dashboardService.getStoreHealth(req.user.id);
+    const data = await dashboardService.getStoreHealth(req.user.id, req.query);
     return ApiResponse.success(res, data, 'Store health');
   }),
 };

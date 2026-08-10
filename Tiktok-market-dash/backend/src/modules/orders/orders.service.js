@@ -13,6 +13,7 @@ import {
   resolveRefundStatus,
   sumRefundAmounts,
 } from '../../utils/refundMath.js';
+import { resolveShopFilter, shopWhere } from '../../utils/shopScope.js';
 
 const STATUS_LABEL = {
   PENDING: 'Pending',
@@ -53,6 +54,8 @@ const mapOrderListItem = (o) => {
     date: formatDate(o.createdAt),
     status: mapStatus(o.status, refundStatus),
     statusRaw: o.status,
+    storeIntegrationId: o.storeIntegrationId || null,
+    shopId: o.storeIntegrationId || null,
     createdAt: o.createdAt,
   };
 };
@@ -124,6 +127,8 @@ const mapOrderDetail = (o) => {
     status: mapStatus(o.status, refundStatus),
     statusRaw: o.status,
     notes: o.notes,
+    storeIntegrationId: o.storeIntegrationId || null,
+    shopId: o.storeIntegrationId || null,
     timeline,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
@@ -189,10 +194,12 @@ export const ordersService = {
     const { page, limit, skip } = parsePagination(query);
     const search = String(query.search || '').trim();
     const statusFilter = String(query.status || query.filter || 'all').toUpperCase();
+    const shopId = await resolveShopFilter(userId, query.shopId);
 
     const where = {
       AND: [
         { userId },
+        shopWhere(shopId),
         statusFilter !== 'ALL' &&
         ['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED', 'UNDER_REVIEW', 'REFUNDED'].includes(statusFilter)
           ? { status: statusFilter }
@@ -222,7 +229,11 @@ export const ordersService = {
         skip,
         take: limit,
       }),
-      prisma.order.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
+      prisma.order.groupBy({
+        by: ['status'],
+        where: { userId, ...shopWhere(shopId) },
+        _count: { _all: true },
+      }),
     ]);
 
     const counts = { all: 0, processing: 0, pending: 0, delivered: 0, cancelled: 0, refunded: 0 };

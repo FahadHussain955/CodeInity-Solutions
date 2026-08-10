@@ -21,9 +21,9 @@ export const campaignsService = {
     }
   },
 
-  async analytics() {
+  async analytics(params = {}) {
     try {
-      const response = await axiosPrivate.get('/campaigns/analytics');
+      const response = await axiosPrivate.get('/campaigns/analytics', { params });
       return unwrap(response);
     } catch (error) {
       throw new CampaignsApiError(getErrorMessage(error, 'Unable to load campaign analytics.'), {

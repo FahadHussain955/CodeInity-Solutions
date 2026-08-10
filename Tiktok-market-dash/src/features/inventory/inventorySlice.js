@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { inventoryService } from '@/services/inventoryService';
 import { PAGE_SIZE } from '@/components/ui/Pagination';
+import { shopIdQueryParam } from '@/utils/shopQuery';
 
 const initialFilters = {
   search: '',
@@ -15,6 +16,7 @@ const initialState = {
   dashboard: null,
   history: [],
   historyPagination: null,
+  lowStockThreshold: 10,
   filters: { ...initialFilters },
   pagination: { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 },
   status: 'idle',
@@ -29,12 +31,14 @@ export const fetchInventoryList = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { filters, pagination } = getState().inventory;
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
       return await inventoryService.list({
         page: pagination.page,
         limit: pagination.limit,
         search: filters.search || undefined,
         status: filters.status !== 'all' ? filters.status : undefined,
         sort: filters.sort,
+        shopId,
       });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load inventory.');
@@ -44,9 +48,10 @@ export const fetchInventoryList = createAsyncThunk(
 
 export const fetchInventoryAnalytics = createAsyncThunk(
   'inventory/analytics',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return await inventoryService.analytics();
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await inventoryService.analytics({ shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load analytics.');
     }
@@ -55,9 +60,10 @@ export const fetchInventoryAnalytics = createAsyncThunk(
 
 export const fetchInventoryDashboard = createAsyncThunk(
   'inventory/dashboard',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return await inventoryService.dashboard();
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
+      return await inventoryService.dashboard({ shopId });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load inventory dashboard.');
     }
@@ -150,6 +156,9 @@ const inventorySlice = createSlice({
         state.status = 'succeeded';
         state.items = action.payload.items || [];
         state.pagination = action.payload.pagination || state.pagination;
+        if (action.payload.lowStockThreshold != null) {
+          state.lowStockThreshold = action.payload.lowStockThreshold;
+        }
       })
       .addCase(fetchInventoryList.rejected, (state, action) => {
         state.status = 'failed';
@@ -161,6 +170,9 @@ const inventorySlice = createSlice({
       .addCase(fetchInventoryAnalytics.fulfilled, (state, action) => {
         state.analyticsStatus = 'succeeded';
         state.analytics = action.payload;
+        if (action.payload?.lowStockThreshold != null) {
+          state.lowStockThreshold = action.payload.lowStockThreshold;
+        }
       })
       .addCase(fetchInventoryAnalytics.rejected, (state, action) => {
         state.analyticsStatus = 'failed';

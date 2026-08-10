@@ -1,9 +1,11 @@
 import { prisma } from '../lib/prisma.js';
 import { logger } from './logger.js';
 
-const TYPE_PREF_MAP = {
+/** Preference keys that can suppress a notification type. INVENTORY is intentionally null —
+ * low-stock alerts are controlled by the user's threshold, not a separate toggle. */
+export const TYPE_PREF_MAP = {
   ORDER: 'orderNotifications',
-  INVENTORY: 'lowStockAlerts',
+  INVENTORY: null,
   AI: 'aiNotifications',
   CAMPAIGN: 'campaignNotifications',
   SYNC: 'emailNotifications',

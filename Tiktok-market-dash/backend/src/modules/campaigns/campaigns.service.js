@@ -7,6 +7,11 @@ import {
   parsePagination,
   toNumber,
 } from '../../utils/queryHelpers.js';
+import {
+  resolveShopFilter,
+  resolveWritableShopId,
+  shopWhere,
+} from '../../utils/shopScope.js';
 
 const STATUS_LABEL = {
   ACTIVE: 'Active',
@@ -99,6 +104,8 @@ export const mapCampaign = (c) => {
     adGroups: c.adGroups || 0,
     ads: adsCount,
     targeting: c.targeting || null,
+    storeIntegrationId: c.storeIntegrationId || null,
+    shopId: c.storeIntegrationId || null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -108,8 +115,8 @@ const campaignInclude = {
   _count: { select: { creatives: true } },
 };
 
-const buildWhere = (userId, query = {}) => {
-  const where = { userId };
+const buildWhere = (userId, query = {}, shopId = null) => {
+  const where = { userId, ...shopWhere(shopId) };
   const search = String(query.search || '').trim();
   const status = parseStatus(query.status || query.filter);
   const platform = String(query.platform || '').trim();
@@ -176,7 +183,8 @@ const findCampaign = async (userId, idOrCode) => {
 export const campaignsService = {
   async list(userId, query = {}) {
     const { page, limit, skip } = parsePagination(query);
-    const where = buildWhere(userId, query);
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const where = buildWhere(userId, query, shopId);
     const orderBy = buildOrderBy(query.sort);
 
     const [total, rows] = await Promise.all([
@@ -214,10 +222,16 @@ export const campaignsService = {
 
     const status = parseStatus(payload.status) || 'DRAFT';
     const objective = parseObjective(payload.objective) || 'CONVERSIONS';
+    const storeIntegrationId = await resolveWritableShopId(
+      userId,
+      payload.shopId || payload.storeIntegrationId
+    );
 
+    // Metrics start at zero on create — clients cannot invent performance data.
     const campaign = await prisma.campaign.create({
       data: {
         userId,
+        storeIntegrationId,
         code,
         campaignName: name,
         objective,
@@ -228,15 +242,15 @@ export const campaignsService = {
           payload.dailyBudget != null && payload.dailyBudget !== ''
             ? moneyStr(payload.dailyBudget)
             : null,
-        totalSpend: moneyStr(payload.spent ?? payload.totalSpend ?? 0),
-        impressions: Number(payload.impressions) || 0,
-        clicks: Number(payload.clicks) || 0,
-        conversions: Number(payload.conversions) || 0,
-        revenue: moneyStr(payload.revenue ?? 0),
-        roas: moneyStr(payload.roas ?? 0),
-        ctr: toNumber(payload.ctr).toFixed(4),
-        cpc: toNumber(payload.cpc).toFixed(4),
-        cpm: toNumber(payload.cpm).toFixed(4),
+        totalSpend: moneyStr(0),
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+        revenue: moneyStr(0),
+        roas: moneyStr(0),
+        ctr: '0.0000',
+        cpc: '0.0000',
+        cpm: '0.0000',
         startDate: payload.startDate ? new Date(payload.startDate) : null,
         endDate: payload.endDate ? new Date(payload.endDate) : null,
         adGroups: Number(payload.adGroups) || 0,
@@ -343,8 +357,11 @@ export const campaignsService = {
     return mapCampaign(campaign);
   },
 
-  async analytics(userId) {
-    const campaigns = await prisma.campaign.findMany({ where: { userId } });
+  async analytics(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const campaigns = await prisma.campaign.findMany({
+      where: { userId, ...shopWhere(shopId) },
+    });
 
     const totalSpend = campaigns.reduce((s, c) => s + toNumber(c.totalSpend), 0);
     const totalRevenue = campaigns.reduce((s, c) => s + toNumber(c.revenue), 0);

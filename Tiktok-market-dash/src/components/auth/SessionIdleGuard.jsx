@@ -7,7 +7,11 @@ import {
   IDLE_TIMEOUT_MS,
   REFRESH_INTERVAL_MS,
 } from '@/constants/auth';
-import { setSessionInvalidHandler } from '@/lib/sessionBridge';
+import {
+  endIntentionalLogout,
+  isIntentionalLogout,
+  setSessionInvalidHandler,
+} from '@/lib/sessionBridge';
 import { ROUTES } from '@/constants/routes';
 
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
@@ -24,6 +28,7 @@ const isAuthRoute = (pathname) =>
  * - Refreshes access token while the user is active
  * - Signs out after 15 minutes idle
  * - On token/session invalidation, clears auth and sends user to login
+ * - Intentional Sign Out redirects to Login without "Session expired"
  */
 const SessionIdleGuard = ({ children }) => {
   const dispatch = useDispatch();
@@ -70,10 +75,17 @@ const SessionIdleGuard = ({ children }) => {
     return () => setSessionInvalidHandler(null);
   }, [goToLogin]);
 
-  // If auth flips true → false for any reason, leave protected pages
+  // Auth flipped true → false: intentional Sign Out vs real expiry
   useEffect(() => {
-    if (wasAuthenticated.current && !isAuthenticated && !isAuthRoute(location.pathname)) {
-      navigate(`${ROUTES.LOGIN}?session=expired`, { replace: true });
+    if (wasAuthenticated.current && !isAuthenticated) {
+      if (isIntentionalLogout()) {
+        if (!isAuthRoute(location.pathname)) {
+          navigate(ROUTES.LOGIN, { replace: true });
+        }
+        endIntentionalLogout();
+      } else if (!isAuthRoute(location.pathname)) {
+        navigate(`${ROUTES.LOGIN}?session=expired`, { replace: true });
+      }
     }
     wasAuthenticated.current = isAuthenticated;
   }, [isAuthenticated, location.pathname, navigate]);

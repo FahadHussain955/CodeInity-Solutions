@@ -22,9 +22,9 @@ export const customersService = {
     }
   },
 
-  async analytics() {
+  async analytics(params = {}) {
     try {
-      const response = await axiosPrivate.get('/customers/analytics');
+      const response = await axiosPrivate.get('/customers/analytics', { params });
       return unwrap(response);
     } catch (error) {
       throw new CustomersApiError(getErrorMessage(error, 'Unable to load customer analytics.'), {
@@ -33,9 +33,9 @@ export const customersService = {
     }
   },
 
-  async dashboard() {
+  async dashboard(params = {}) {
     try {
-      const response = await axiosPrivate.get('/customers/dashboard');
+      const response = await axiosPrivate.get('/customers/dashboard', { params });
       return unwrap(response);
     } catch (error) {
       throw new CustomersApiError(getErrorMessage(error, 'Unable to load customer dashboard.'), {

@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Pagination, { PAGE_SIZE } from '@/components/ui/Pagination';
 import FilterTabs from '@/components/ui/FilterTabs';
-import { fetchAdsList, setAdsFilters, setAdsPage } from '@/features/ads/adsSlice';
+import AdFormModal from '@/components/modals/AdFormModal';
+import NoShopGate from '@/components/ui/NoShopGate';
+import {
+  clearAdsNotice,
+  createAd,
+  deleteAd,
+  fetchAdsList,
+  setAdsFilters,
+  setAdsPage,
+  updateAd,
+} from '@/features/ads/adsSlice';
 
 const fmt = (n) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
 
@@ -18,20 +27,52 @@ const FORMAT_COLORS = {
 const TABS = ['All', 'Active', 'Paused', 'Under Review'];
 
 const AdsPage = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { items, filters, pagination, status, error } = useSelector((s) => s.ads);
+  const { items, filters, pagination, status, error, notice } = useSelector((s) => s.ads);
+  const selectedShopId = useSelector((s) => s.integrations?.selectedShopId);
   const [view, setView] = useState('table');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editAd, setEditAd] = useState(null);
+  const [menuId, setMenuId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchAdsList());
-  }, [dispatch, filters.status, filters.search, pagination.page]);
+  }, [dispatch, filters.status, filters.search, pagination.page, selectedShopId]);
 
   const tabCounts = TABS.map((t) => ({
     key: t,
     label: t,
     count: t === 'All' ? pagination.total : undefined,
   }));
+
+  const handleCreate = async (payload) => {
+    const result = await dispatch(createAd(payload));
+    if (createAd.rejected.match(result)) {
+      throw new Error(result.payload || 'Unable to create ad.');
+    }
+    dispatch(fetchAdsList());
+    return result.payload;
+  };
+
+  const handleUpdate = async (payload) => {
+    const result = await dispatch(updateAd({ id: editAd.id, ...payload }));
+    if (updateAd.rejected.match(result)) {
+      throw new Error(result.payload || 'Unable to update ad.');
+    }
+    dispatch(fetchAdsList());
+    return result.payload;
+  };
+
+  const handleDelete = async (ad) => {
+    setMenuId(null);
+    if (!window.confirm(`Delete ad "${ad.name}"? This cannot be undone.`)) return;
+    const result = await dispatch(deleteAd(ad.id));
+    if (deleteAd.rejected.match(result)) {
+      window.alert(result.payload || 'Unable to delete ad.');
+      return;
+    }
+    dispatch(fetchAdsList());
+  };
 
   return (
     <div className="space-y-6 py-2">
@@ -44,26 +85,42 @@ const AdsPage = () => {
           </div>
           <h2 className="text-display-lg-mobile md:text-display-lg text-on-background">Ad Manager</h2>
         </div>
-        <div className="flex items-center gap-3">
+      </div>
+
+      <NoShopGate description="Connect your TikTok Shop to start managing ads.">
+      <div className="flex items-center justify-end gap-3">
           <div className="filter-tabs flex items-center p-1 gap-1 border border-outline-variant/30 rounded-lg toolbar-control">
             {[{ v: 'table', icon: 'view_list' }, { v: 'grid', icon: 'grid_view' }].map(({ v, icon }) => (
-              <button key={v} onClick={() => setView(v)} className={`h-full px-2 rounded-md transition-colors flex items-center ${view === v ? 'bg-surface shadow-sm text-primary' : 'font-normal text-on-surface-variant hover:text-on-surface'}`}>
+              <button key={v} type="button" onClick={() => setView(v)} className={`h-full px-2 rounded-md transition-colors flex items-center ${view === v ? 'bg-surface shadow-sm text-primary' : 'font-normal text-on-surface-variant hover:text-on-surface'}`}>
                 <span className="material-symbols-outlined text-[18px]">{icon}</span>
               </button>
             ))}
           </div>
           <button
-            onClick={() => navigate('/dashboard/ads/new')}
+            type="button"
+            onClick={() => setCreateOpen(true)}
             className="toolbar-control flex items-center gap-2 bg-primary text-on-primary px-4 rounded-lg text-body-sm font-medium hover:bg-surface-tint transition-colors shadow-sm"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             Create Ad
           </button>
-        </div>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-error/30 bg-error-container text-on-error-container px-4 py-3 text-body-sm">{error}</div>
+      {(error || notice) && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-body-sm ${
+            error
+              ? 'border-error/30 bg-error-container text-on-error-container'
+              : 'border-success-border bg-success-bg text-success'
+          }`}
+        >
+          {error || notice}
+          {notice && (
+            <button type="button" className="ml-3 underline" onClick={() => dispatch(clearAdsNotice())}>
+              Dismiss
+            </button>
+          )}
+        </div>
       )}
 
       <div className="table-toolbar">
@@ -94,7 +151,11 @@ const AdsPage = () => {
                   <tr><td colSpan={10} className="py-10 text-center text-on-surface-variant">No ads found.</td></tr>
                 )}
                 {items.map((ad) => (
-                  <tr key={ad.id} onClick={() => navigate(`/dashboard/ads/${ad.id}`)} className="table-row-hover cursor-pointer transition-all duration-200">
+                  <tr
+                    key={ad.id}
+                    onClick={() => setEditAd(ad)}
+                    className="table-row-hover cursor-pointer transition-all duration-200"
+                  >
                     <td className="py-3 px-5">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-lg bg-surface-container overflow-hidden shrink-0 flex items-center justify-center border border-outline-variant/20">
@@ -104,7 +165,7 @@ const AdsPage = () => {
                         </div>
                         <div>
                           <p className="font-medium text-on-surface">{ad.name}</p>
-                          <p className="text-outline text-[11px] mt-0.5">{ad.duration} · {ad.code || ad.id}</p>
+                          <p className="text-outline text-[11px] mt-0.5">{ad.duration || '—'} · {ad.code || ad.id}</p>
                         </div>
                       </div>
                     </td>
@@ -120,10 +181,32 @@ const AdsPage = () => {
                     <td className="py-3 px-5 font-mono text-on-surface">{ad.spend > 0 ? `$${ad.spend.toLocaleString()}` : '—'}</td>
                     <td className="py-3 px-5 font-mono font-bold text-success">{ad.roas > 0 ? `${ad.roas.toFixed(1)}x` : '—'}</td>
                     <td className="py-3 px-5"><StatusBadge status={ad.status} /></td>
-                    <td className="py-3 px-5" onClick={(e) => e.stopPropagation()}>
-                      <button className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50">
+                    <td className="py-3 px-5 relative" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setMenuId((id) => (id === ad.id ? null : ad.id))}
+                        className="text-on-surface-variant hover:text-primary transition-colors p-1 rounded hover:bg-surface-variant/50"
+                      >
                         <span className="material-symbols-outlined text-[18px]">more_vert</span>
                       </button>
+                      {menuId === ad.id && (
+                        <div className="absolute right-4 top-10 z-20 w-40 rounded-lg border border-outline-variant/30 bg-surface-container-lowest shadow-lg p-1">
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 rounded-md text-body-sm hover:bg-surface-variant/40"
+                            onClick={() => { setEditAd(ad); setMenuId(null); }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 rounded-md text-body-sm text-error hover:bg-error-container"
+                            onClick={() => handleDelete(ad)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -147,7 +230,7 @@ const AdsPage = () => {
               return (
                 <div
                   key={ad.id}
-                  onClick={() => navigate(`/dashboard/ads/${ad.id}`)}
+                  onClick={() => setEditAd(ad)}
                   className="glass-panel rounded-xl overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
                 >
                   <div className="relative w-full h-72 bg-black flex items-center justify-center overflow-hidden">
@@ -174,21 +257,14 @@ const AdsPage = () => {
                       <div className="shrink-0"><StatusBadge status={ad.status} /></div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end min-w-0">
                         <span className={`text-label-caps px-2 py-0.5 rounded-full whitespace-nowrap ${isUnderReview ? 'text-on-surface-variant bg-surface-container border border-outline-variant/30' : 'text-white/80 bg-black/40'}`}>{ad.format}</span>
-                        <span className={`text-label-caps px-2 py-0.5 rounded-full whitespace-nowrap ${isUnderReview ? 'text-on-surface-variant bg-surface-container border border-outline-variant/30' : 'text-white bg-black/50'}`}>{ad.duration}</span>
+                        <span className={`text-label-caps px-2 py-0.5 rounded-full whitespace-nowrap ${isUnderReview ? 'text-on-surface-variant bg-surface-container border border-outline-variant/30' : 'text-white bg-black/50'}`}>{ad.duration || '—'}</span>
                       </div>
                     </div>
                     {!isUnderReview && (
-                      <>
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="material-symbols-outlined text-white text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
-                          </div>
-                        </div>
-                        <div className="absolute bottom-0 left-0 right-0 p-3 z-10">
-                          <p className="text-body-sm font-semibold text-white truncate">{ad.name}</p>
-                          <p className="text-label-caps text-white/70 truncate mt-0.5">{ad.caption}</p>
-                        </div>
-                      </>
+                      <div className="absolute bottom-0 left-0 right-0 p-3 z-10">
+                        <p className="text-body-sm font-semibold text-white truncate">{ad.name}</p>
+                        <p className="text-label-caps text-white/70 truncate mt-0.5">{ad.caption}</p>
+                      </div>
                     )}
                   </div>
                   <div className="p-4 grid grid-cols-3 gap-3">
@@ -203,8 +279,15 @@ const AdsPage = () => {
                       </div>
                     ))}
                   </div>
-                  <div className="px-4 pb-4">
+                  <div className="px-4 pb-4 flex items-center justify-between gap-2">
                     <p className="text-label-caps text-outline truncate">{ad.campaignName}</p>
+                    <button
+                      type="button"
+                      className="text-error text-label-caps hover:underline"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(ad); }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               );
@@ -220,6 +303,21 @@ const AdsPage = () => {
           </div>
         </>
       )}
+
+      <AdFormModal
+        open={createOpen}
+        mode="create"
+        onClose={() => setCreateOpen(false)}
+        onSubmit={handleCreate}
+      />
+      <AdFormModal
+        open={Boolean(editAd)}
+        mode="edit"
+        initial={editAd}
+        onClose={() => setEditAd(null)}
+        onSubmit={handleUpdate}
+      />
+      </NoShopGate>
     </div>
   );
 };

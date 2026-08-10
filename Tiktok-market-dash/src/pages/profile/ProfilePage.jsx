@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { ROUTES } from '@/constants/routes';
 import { useAuth } from '@/hooks/useAuth';
 import FilterTabs from '@/components/ui/FilterTabs';
+import UserAvatar from '@/components/ui/UserAvatar';
 import { authService } from '@/services/authService';
 import { activityService, uploadsService } from '@/services/settingsService';
 import { fetchCurrentUser } from '@/features/auth/authSlice';
@@ -119,8 +120,6 @@ const ProfilePage = () => {
     }
   };
 
-  const initial = (name || email || 'U').charAt(0).toUpperCase();
-
   return (
     <div className="space-y-6 py-2">
       <div>
@@ -146,13 +145,11 @@ const ProfilePage = () => {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-8">
             <div className="flex items-end gap-4">
               <div className="relative group">
-                <div className="w-20 h-20 rounded-xl bg-primary-container border-4 border-surface flex items-center justify-center text-on-primary-container text-[32px] font-bold shrink-0 shadow-sm overflow-hidden">
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    initial
-                  )}
-                </div>
+                <UserAvatar
+                  user={user}
+                  alt=""
+                  className="w-20 h-20 rounded-xl border-4 border-surface shadow-sm"
+                />
                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-xl">
                   <span className="material-symbols-outlined text-white text-[20px]">photo_camera</span>
                   <input type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />

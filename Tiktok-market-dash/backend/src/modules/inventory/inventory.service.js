@@ -6,42 +6,53 @@ import {
   parsePagination,
   toNumber,
 } from '../../utils/queryHelpers.js';
+import {
+  evaluateLowStockTransition,
+  getLowStockThreshold,
+  isLowStock,
+  isOutOfStock,
+} from '../../utils/lowStock.js';
+import { resolveShopFilter } from '../../utils/shopScope.js';
 
-const stockStatus = (currentStock, reorderLevel, maxStockLevel) => {
-  if (currentStock <= 0) return 'Out of Stock';
-  if (currentStock <= reorderLevel) return 'Low Stock';
+const stockStatus = (currentStock, threshold, maxStockLevel) => {
+  if (isOutOfStock(currentStock)) return 'Out of Stock';
+  if (isLowStock(currentStock, threshold)) return 'Low Stock';
   if (currentStock >= maxStockLevel) return 'Overstocked';
   return 'In Stock';
 };
 
 const availableStock = (row) => Math.max(0, row.currentStock - row.reservedStock);
 
-const mapInventoryItem = (row) => {
+const mapInventoryItem = (row, threshold) => {
   const current = row.currentStock;
   const reserved = row.reservedStock;
-  const reorder = row.reorderLevel;
   const max = row.maxStockLevel;
+  const lowThreshold = Number(threshold) || 10;
   return {
     id: row.id,
     productId: row.productId,
     name: row.product?.name,
     sku: row.product?.sku,
     category: row.product?.category,
+    productStatus: row.product?.status,
     price: toNumber(row.product?.price),
     costPrice: toNumber(row.product?.costPrice),
     image: row.product?.image,
+    storeIntegrationId: row.product?.storeIntegrationId || null,
+    shopId: row.product?.storeIntegrationId || null,
     inStock: current,
     currentStock: current,
     reserved,
     reservedStock: reserved,
     available: availableStock(row),
-    reorderPoint: reorder,
-    reorderLevel: reorder,
+    reorderPoint: lowThreshold,
+    reorderLevel: row.reorderLevel,
+    lowStockThreshold: lowThreshold,
     maxStockLevel: max,
     warehouse: row.warehouse,
     lastRestockedAt: row.lastRestockedAt,
     lastMovementAt: row.lastMovementAt,
-    status: stockStatus(current, reorder, max),
+    status: stockStatus(current, lowThreshold, max),
     updatedAt: row.updatedAt,
     createdAt: row.createdAt,
   };
@@ -58,6 +69,8 @@ const inventoryInclude = {
       costPrice: true,
       image: true,
       status: true,
+      userId: true,
+      storeIntegrationId: true,
     },
   },
 };
@@ -66,11 +79,12 @@ const ownershipProductFilter = (userId) => ({
   OR: [{ userId }, { userId: null }],
 });
 
-const buildWhere = ({ search, status, userId }) => {
+const buildWhere = ({ search, status, userId, shopId }) => {
   const where = {};
 
   const productFilter = {
     ...(userId ? ownershipProductFilter(userId) : {}),
+    ...(shopId ? { storeIntegrationId: shopId } : {}),
   };
 
   if (search) {
@@ -85,7 +99,7 @@ const buildWhere = ({ search, status, userId }) => {
         },
       ],
     };
-  } else if (userId) {
+  } else if (userId || shopId) {
     where.product = productFilter;
   }
 
@@ -142,7 +156,7 @@ const updateInventoryStock = async ({
   userId,
   markRestocked = false,
 }) => {
-  return prisma.$transaction(async (tx) => {
+  const txResult = await prisma.$transaction(async (tx) => {
     const inventory = await tx.inventory.findUnique({
       where: { id: inventoryId },
       include: inventoryInclude,
@@ -151,11 +165,17 @@ const updateInventoryStock = async ({
 
     const previousQty = inventory.currentStock;
     const newQty = Math.max(0, Number(nextStock));
-    const nextReserved =
+    let nextReserved =
       reservedStock === undefined ? inventory.reservedStock : Math.max(0, Number(reservedStock));
 
+    // When stock is reduced without an explicit reserved override, clamp reserved
+    // so sellers can lower inventory into the low-stock range without a hard failure.
     if (nextReserved > newQty) {
-      throw ApiError.badRequest('Reserved stock cannot exceed current stock.');
+      if (reservedStock === undefined) {
+        nextReserved = newQty;
+      } else {
+        throw ApiError.badRequest('Reserved stock cannot exceed current stock.');
+      }
     }
 
     const updated = await tx.inventory.update({
@@ -178,8 +198,23 @@ const updateInventoryStock = async ({
       userId,
     });
 
-    return mapInventoryItem(updated);
+    return { updated, previousQty, newQty };
   });
+
+  const ownerId = txResult.updated.product?.userId || userId || null;
+  if (ownerId) {
+    await evaluateLowStockTransition({
+      userId: ownerId,
+      productId: txResult.updated.productId,
+      productName: txResult.updated.product?.name,
+      sku: txResult.updated.product?.sku,
+      previousStock: txResult.previousQty,
+      newStock: txResult.newQty,
+    });
+  }
+
+  const threshold = ownerId ? await getLowStockThreshold(ownerId) : 10;
+  return mapInventoryItem(txResult.updated, threshold);
 };
 
 export const inventoryService = {
@@ -188,8 +223,10 @@ export const inventoryService = {
     const search = String(query.search || '').trim();
     const status = String(query.status || query.filter || 'all').toLowerCase();
     const sort = String(query.sort || 'updated').toLowerCase();
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const threshold = await getLowStockThreshold(userId);
 
-    const where = buildWhere({ search, status, userId });
+    const where = buildWhere({ search, status, userId, shopId });
 
     // When filtering by computed status (low/overstocked/in_stock), load candidates then paginate in memory.
     const needsMemoryFilter = ['low_stock', 'in_stock', 'overstocked'].includes(status);
@@ -200,10 +237,15 @@ export const inventoryService = {
         include: inventoryInclude,
         orderBy: buildOrderBy(sort),
       });
-      const mapped = all.map(mapInventoryItem).filter((item) => matchesStatusFilter(item, status));
+      const mapped = all
+        .map((row) => mapInventoryItem(row, threshold))
+        .filter((item) => matchesStatusFilter(item, status));
       const total = mapped.length;
       const items = mapped.slice(skip, skip + limit);
-      return paginatedResult({ items, total, page, limit });
+      return {
+        ...paginatedResult({ items, total, page, limit }),
+        lowStockThreshold: threshold,
+      };
     }
 
     const [total, rows] = await Promise.all([
@@ -217,15 +259,19 @@ export const inventoryService = {
       }),
     ]);
 
-    return paginatedResult({
-      items: rows.map(mapInventoryItem),
-      total,
-      page,
-      limit,
-    });
+    return {
+      ...paginatedResult({
+        items: rows.map((row) => mapInventoryItem(row, threshold)),
+        total,
+        page,
+        limit,
+      }),
+      lowStockThreshold: threshold,
+    };
   },
 
   async getById(userId, id) {
+    const threshold = await getLowStockThreshold(userId);
     const row = await prisma.inventory.findFirst({
       where: {
         id,
@@ -234,16 +280,18 @@ export const inventoryService = {
       include: inventoryInclude,
     });
     if (!row) throw ApiError.notFound('Inventory record not found.');
-    return mapInventoryItem(row);
+    return mapInventoryItem(row, threshold);
   },
 
-  async getByProductId(productId) {
+  async getByProductId(productId, userId = null) {
     const row = await prisma.inventory.findUnique({
       where: { productId },
       include: inventoryInclude,
     });
     if (!row) throw ApiError.notFound('Inventory record not found for product.');
-    return mapInventoryItem(row);
+    const ownerId = userId || row.product?.userId;
+    const threshold = await getLowStockThreshold(ownerId);
+    return mapInventoryItem(row, threshold);
   },
 
   async updateStock(id, { currentStock, reservedStock, reason }, userId) {
@@ -359,15 +407,32 @@ export const inventoryService = {
     return paginatedResult({ items, total, page, limit });
   },
 
-  async analytics(userId) {
+  async analytics(userId, query = {}) {
+    const shopId = await resolveShopFilter(userId, query.shopId);
+    const threshold = await getLowStockThreshold(userId);
+    const productWhere = {
+      ...(userId ? ownershipProductFilter(userId) : {}),
+      ...(shopId ? { storeIntegrationId: shopId } : {}),
+    };
     const rows = await prisma.inventory.findMany({
-      where: userId ? { product: ownershipProductFilter(userId) } : undefined,
+      where: userId || shopId ? { product: productWhere } : undefined,
       include: {
-        product: { select: { price: true, costPrice: true, name: true, sku: true } },
+        product: {
+          select: {
+            price: true,
+            costPrice: true,
+            name: true,
+            sku: true,
+            image: true,
+            category: true,
+            status: true,
+            storeIntegrationId: true,
+          },
+        },
       },
     });
 
-    const mapped = rows.map(mapInventoryItem);
+    const mapped = rows.map((row) => mapInventoryItem(row, threshold));
     const totalSkus = mapped.length;
     const totalUnits = mapped.reduce((s, i) => s + i.currentStock, 0);
     const lowStock = mapped.filter((i) => i.status === 'Low Stock');
@@ -408,11 +473,20 @@ export const inventoryService = {
       outOfStockCount: outOfStock.length,
       overstockedCount: overstocked.length,
       inStockCount: inStock.length,
-      lowStockItems: lowStock.slice(0, 10).map((i) => ({
+      lowStockThreshold: threshold,
+      lowStockItems: lowStock.slice(0, 20).map((i) => ({
+        id: i.id,
+        productId: i.productId,
         name: i.name,
         sku: i.sku,
+        image: i.image,
+        category: i.category,
+        productStatus: i.productStatus,
         stock: i.currentStock,
-        reorderLevel: i.reorderLevel,
+        currentStock: i.currentStock,
+        threshold: i.lowStockThreshold,
+        reorderLevel: i.lowStockThreshold,
+        status: i.status,
       })),
       recentlyUpdated,
       distribution,
@@ -442,8 +516,8 @@ export const inventoryService = {
     };
   },
 
-  async dashboardSummary(userId) {
-    const analytics = await this.analytics(userId);
+  async dashboardSummary(userId, query = {}) {
+    const analytics = await this.analytics(userId, query);
     return {
       inventoryValue: analytics.totalInventoryValueFormatted,
       inventoryValueRaw: analytics.totalInventoryValue,

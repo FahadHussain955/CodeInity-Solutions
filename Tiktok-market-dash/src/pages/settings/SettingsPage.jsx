@@ -60,7 +60,8 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [syncLogs, setSyncLogs] = useState([]);
 
-  const { openConnectModal, disconnectStore, syncStore, getStoreForPlatform } = useStoreConnection();
+  const { openConnectModal, disconnectStore, syncStore, getStoreForPlatform, getStoresForPlatform, stores } =
+    useStoreConnection();
   const [syncingId, setSyncingId] = useState(null);
   const [integrationNotice, setIntegrationNotice] = useState(null);
 
@@ -304,7 +305,6 @@ const SettingsPage = () => {
                 {[
                   { key: 'email', label: 'Email Notifications', desc: 'Receive important updates by email' },
                   { key: 'orders', label: 'New Orders', desc: 'Get notified when a new order is placed' },
-                  { key: 'inventory', label: 'Low Stock Alerts', desc: 'Alert when products reach reorder point' },
                   { key: 'campaign', label: 'Campaign Notifications', desc: 'Updates on campaign status and performance' },
                   { key: 'ai', label: 'AI Recommendation Notifications', desc: 'Alerts when new AI insights are ready' },
                   { key: 'customers', label: 'New Customers', desc: 'Notify on new customer registrations' },
@@ -327,116 +327,136 @@ const SettingsPage = () => {
 
           {active === 'integrations' && (
             <div className="glass-panel rounded-xl overflow-hidden">
-              <div className="p-6 border-b border-outline-variant/20">
-                <h3 className="text-headline-md text-on-background">Connected Integrations</h3>
-                <p className="text-body-sm text-on-surface-variant mt-1">Manage your connected stores and platforms.</p>
+              <div className="p-6 border-b border-outline-variant/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="text-headline-md text-on-background">Connected Shops</h3>
+                  <p className="text-body-sm text-on-surface-variant mt-1">
+                    Connect multiple TikTok shops and switch between them in the navbar.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openConnectModal('TikTok Shop')}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-body-sm font-medium bg-primary text-on-primary hover:bg-surface-tint transition-colors shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add</span>
+                  {stores.length > 0 ? 'Connect Another Shop' : 'Connect TikTok Shop'}
+                </button>
               </div>
               <div className="divide-y divide-outline-variant/10">
                 {integrationOptions.map(({ name, desc, icon, comingSoon }) => {
-                  const connectedStore = getStoreForPlatform(name);
-                  const isThisConnected = Boolean(connectedStore);
+                  const platformStores = comingSoon ? [] : getStoresForPlatform(name);
+                  const isThisConnected = platformStores.length > 0;
                   return (
-                    <div key={name} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-[24px] shrink-0 border border-outline-variant/20 shadow-sm">{icon}</div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-body-md font-semibold text-on-surface">{name}</p>
-                            {isThisConnected && (
-                              <span className="flex items-center gap-1 text-label-caps text-success bg-success-bg border border-success-border px-2 py-0.5 rounded-full">
-                                <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                                Connected
-                              </span>
-                            )}
-                            {comingSoon && (
-                              <span className="text-label-caps text-outline bg-surface-container px-2 py-0.5 rounded-full">Coming Soon</span>
-                            )}
-                          </div>
-                          <p className="text-body-sm text-on-surface-variant mt-0.5">{desc}</p>
-                          {isThisConnected && (
-                            <div className="mt-3 p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col gap-3">
-                              <div className="flex items-center gap-6">
-                                <div>
-                                  <p className="text-label-caps text-outline uppercase tracking-wider mb-0.5">Store Details</p>
-                                  <p className="text-body-sm font-medium text-on-surface">{connectedStore.name}</p>
-                                  <p className="text-[11px] text-on-surface-variant">{connectedStore.url}</p>
-                                </div>
-                                <div className="hidden sm:block w-px h-8 bg-outline-variant/20" />
-                                <div className="hidden sm:block">
-                                  <p className="text-label-caps text-outline uppercase tracking-wider mb-0.5">Last Sync</p>
-                                  <p className="text-body-sm text-on-surface">{connectedStore.lastSyncLabel || connectedStore.lastSync || 'Never'}</p>
-                                </div>
-                              </div>
-                              {syncLogs.length > 0 && (
-                                <div>
-                                  <p className="text-label-caps text-outline uppercase mb-1">Sync History</p>
-                                  <ul className="space-y-1">
-                                    {syncLogs.slice(0, 3).map((log) => (
-                                      <li key={log.id} className="text-[11px] text-on-surface-variant">
-                                        {log.status} · {log.message || 'Sync'} · {log.createdAt ? new Date(log.createdAt).toLocaleString() : ''}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
+                    <div key={name} className="p-6 flex flex-col gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-[24px] shrink-0 border border-outline-variant/20 shadow-sm">{icon}</div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-body-md font-semibold text-on-surface">{name}</p>
+                              {isThisConnected && (
+                                <span className="flex items-center gap-1 text-label-caps text-success bg-success-bg border border-success-border px-2 py-0.5 rounded-full">
+                                  <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                                  {platformStores.length} connected
+                                </span>
+                              )}
+                              {comingSoon && (
+                                <span className="text-label-caps text-outline bg-surface-container px-2 py-0.5 rounded-full">Coming Soon</span>
                               )}
                             </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:items-end gap-2 shrink-0">
-                        {isThisConnected ? (
-                          <div className="flex items-center gap-2 w-full">
-                            <button
-                              type="button"
-                              disabled={syncingId === connectedStore.id}
-                              onClick={async () => {
-                                try {
-                                  setSyncingId(connectedStore.id);
-                                  await syncStore(connectedStore.id);
-                                  setIntegrationNotice('Store synced successfully.');
-                                  await loadSyncHistory(connectedStore.id);
-                                } catch (err) {
-                                  setIntegrationNotice(err.message || 'Sync failed.');
-                                } finally {
-                                  setSyncingId(null);
-                                }
-                              }}
-                              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 border border-outline-variant/50 rounded-lg text-body-sm font-medium text-on-surface hover:bg-surface-variant/30 transition-colors shadow-sm disabled:opacity-60"
-                            >
-                              <span className={`material-symbols-outlined text-[18px] ${syncingId === connectedStore.id ? 'animate-spin' : ''}`}>sync</span>
-                              {syncingId === connectedStore.id ? 'Syncing…' : 'Sync Now'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!window.confirm('Disconnect this store? Sync will stop until you reconnect.')) return;
-                                try {
-                                  await disconnectStore(connectedStore.id);
-                                  setIntegrationNotice('Store disconnected.');
-                                  setSyncLogs([]);
-                                } catch (err) {
-                                  setIntegrationNotice(err.message || 'Disconnect failed.');
-                                }
-                              }}
-                              className="flex items-center justify-center p-2 border border-error/30 text-error rounded-lg hover:bg-error-container/50 transition-colors"
-                              title="Disconnect Store"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">link_off</span>
-                            </button>
+                            <p className="text-body-sm text-on-surface-variant mt-0.5">{desc}</p>
                           </div>
-                        ) : (
+                        </div>
+                        {!comingSoon && !isThisConnected && (
                           <button
                             type="button"
-                            onClick={() => !comingSoon && openConnectModal(name)}
-                            disabled={comingSoon}
-                            className={`w-full sm:w-auto px-5 py-2.5 rounded-lg text-body-sm font-medium transition-colors shadow-sm ${
-                              comingSoon ? 'bg-surface-container-high text-outline cursor-not-allowed' : 'bg-primary text-on-primary hover:bg-surface-tint'
-                            }`}
+                            onClick={() => openConnectModal(name)}
+                            className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-body-sm font-medium bg-primary text-on-primary hover:bg-surface-tint transition-colors shadow-sm"
+                          >
+                            Connect
+                          </button>
+                        )}
+                        {comingSoon && (
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-body-sm font-medium bg-surface-container-high text-outline cursor-not-allowed"
                           >
                             Connect
                           </button>
                         )}
                       </div>
+
+                      {isThisConnected && (
+                        <div className="space-y-3">
+                          {platformStores.map((shop) => (
+                            <div
+                              key={shop.id}
+                              className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            >
+                              <div>
+                                <p className="text-body-sm font-medium text-on-surface">{shop.name || shop.storeName}</p>
+                                <p className="text-[11px] text-on-surface-variant">{shop.url || shop.storeUrl}</p>
+                                <p className="text-[11px] text-on-surface-variant mt-1">
+                                  Last sync: {shop.lastSyncLabel || shop.lastSync || 'Never'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={syncingId === shop.id}
+                                  onClick={async () => {
+                                    try {
+                                      setSyncingId(shop.id);
+                                      await syncStore(shop.id);
+                                      setIntegrationNotice('Store synced successfully.');
+                                      await loadSyncHistory(shop.id);
+                                    } catch (err) {
+                                      setIntegrationNotice(err.message || 'Sync failed.');
+                                    } finally {
+                                      setSyncingId(null);
+                                    }
+                                  }}
+                                  className="flex items-center justify-center gap-1.5 px-4 py-2 border border-outline-variant/50 rounded-lg text-body-sm font-medium text-on-surface hover:bg-surface-variant/30 transition-colors shadow-sm disabled:opacity-60"
+                                >
+                                  <span className={`material-symbols-outlined text-[18px] ${syncingId === shop.id ? 'animate-spin' : ''}`}>sync</span>
+                                  {syncingId === shop.id ? 'Syncing…' : 'Sync'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!window.confirm(`Disconnect ${shop.name || shop.storeName}?`)) return;
+                                    try {
+                                      await disconnectStore(shop.id);
+                                      setIntegrationNotice('Store disconnected.');
+                                      setSyncLogs([]);
+                                    } catch (err) {
+                                      setIntegrationNotice(err.message || 'Disconnect failed.');
+                                    }
+                                  }}
+                                  className="flex items-center justify-center p-2 border border-error/30 text-error rounded-lg hover:bg-error-container/50 transition-colors"
+                                  title="Disconnect Store"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">link_off</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {syncLogs.length > 0 && (
+                            <div className="px-1">
+                              <p className="text-label-caps text-outline uppercase mb-1">Recent Sync History</p>
+                              <ul className="space-y-1">
+                                {syncLogs.slice(0, 3).map((log) => (
+                                  <li key={log.id} className="text-[11px] text-on-surface-variant">
+                                    {log.status} · {log.message || 'Sync'} · {log.createdAt ? new Date(log.createdAt).toLocaleString() : ''}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

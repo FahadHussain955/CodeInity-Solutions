@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { ordersService } from '@/services/ordersService';
 import { PAGE_SIZE } from '@/components/ui/Pagination';
+import { shopIdQueryParam } from '@/utils/shopQuery';
 
 const initialFilters = {
   search: '',
@@ -25,11 +26,13 @@ export const fetchOrdersList = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { filters, pagination } = getState().orders;
+      const shopId = shopIdQueryParam(getState().integrations?.selectedShopId);
       return await ordersService.list({
         page: pagination.page,
         limit: pagination.limit,
         search: filters.search || undefined,
         status: filters.filter !== 'all' ? filters.filter : undefined,
+        shopId,
       });
     } catch (error) {
       return rejectWithValue(error.message || 'Unable to load orders.');

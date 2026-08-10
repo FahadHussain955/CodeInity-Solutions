@@ -18,6 +18,13 @@ export const adIdValidators = [
 export const createAdValidators = [
   body('name').optional().isString().trim().isLength({ min: 2, max: 200 }),
   body('title').optional().isString().trim().isLength({ min: 2, max: 200 }),
+  body().custom((_, { req }) => {
+    const title = String(req.body?.name || req.body?.title || '').trim();
+    if (title.length < 2) {
+      throw new Error('Ad title is required (min 2 characters).');
+    }
+    return true;
+  }),
   body('campaignId').isString().notEmpty().withMessage('campaignId is required'),
   body('format').optional().isString().trim(),
   body('mediaType').optional().isString().trim(),
@@ -26,8 +33,6 @@ export const createAdValidators = [
   body('caption').optional({ nullable: true }).isString().isLength({ max: 2000 }),
   body('adGroup').optional({ nullable: true }).isString().trim(),
   body('duration').optional({ nullable: true }).isString().trim(),
-  body('status').optional().isString(),
-  body('reviewStatus').optional().isString(),
 ];
 
 export const updateAdValidators = [

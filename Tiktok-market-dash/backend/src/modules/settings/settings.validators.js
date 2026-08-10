@@ -33,3 +33,9 @@ export const updateNotificationValidators = [
   body('emailNotifications').optional().isBoolean(),
   body('notifications').optional().isObject(),
 ];
+
+export const updateInventoryValidators = [
+  body('lowStockThreshold').optional().isInt({ min: 1, max: 10000 }),
+  body('threshold').optional().isInt({ min: 1, max: 10000 }),
+  body('inventory').optional().isObject(),
+];
